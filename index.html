@@ -21,14 +21,14 @@
       margin: 0;
       padding: 0;
       -webkit-font-smoothing: antialiased;
-      line-height: 1.2;
+      line-height: 1.4; /* ⭐ 캡처 밀림 방지를 위해 기본 줄간격을 넉넉하게 변경 */
     }
 
     /* ⭐ 출력 시 정확히 1페이지에 라운드 처리되어 들어가도록 최적화 */
     @media print {
       @page {
         size: A4 landscape;
-        margin: 5mm; /* 종이에 약간 여백을 주어 라운드가 잘리지 않게 함 */
+        margin: 5mm; 
       }
       body { 
         background-color: white !important; 
@@ -37,14 +37,18 @@
         print-color-adjust: exact !important;
       }
       .no-print { display: none !important; }
+      #capture-wrapper { 
+        background-color: white !important; 
+        padding: 0 !important;
+      }
       #wide-dashboard {
-        width: 287mm !important; /* A4 가로(297)보다 약간 작게 */
-        height: 200mm !important; /* A4 세로(210)보다 약간 작게 (2장 넘어감 방지) */
+        width: 287mm !important; 
+        height: 200mm !important; 
         max-width: none !important;
         margin: auto !important;
-        border-radius: 32px !important; /* 인쇄 시에도 라운드 유지 */
+        border-radius: 32px !important; 
         box-shadow: none !important;
-        border: 2px solid #e2e8f0 !important; /* 테두리를 주어 깔끔하게 */
+        border: 2px solid #e2e8f0 !important; 
         overflow: hidden !important;
         page-break-after: avoid;
         page-break-inside: avoid;
@@ -71,10 +75,7 @@
 
     const colorPalette = ["#3b82f6", "#9333ea", "#0ea5e9", "#eab308", "#ec4899", "#10b981", "#f97316", "#14b8a6"];
 
-    // ⭐ 1. 구글 앱스 스크립트 웹앱 주소 입력 (알려주신 최신 백엔드 주소 적용!)
     const GAS_API_URL = "https://script.google.com/macros/s/AKfycbya59NwpvmaaPXbhvuvIDf4spaGy_M7m4nzjgqykvlGUdIf6Hmd5veavpVal_ogFwpD9w/exec"; 
-
-    // ⭐ 2. 깃허브 로고 파일명
     const LOGO_FILENAME = "./열린학원로고(누끼).png";
 
     function App() {
@@ -122,7 +123,6 @@
       }
       allSessions.sort();
 
-      // ⭐ 토탈 레이트 점수별 동적 색상 지정 (파스텔 톤)
       const getRateStyle = (rate) => {
         if (rate < 50) return { bg: 'bg-rose-500', text: 'text-rose-200' };
         if (rate < 70) return { bg: 'bg-purple-500', text: 'text-purple-200' };
@@ -131,16 +131,13 @@
       };
       const rateStyle = getRateStyle(data.overallRate);
 
-      // 출력 기능
       const handlePrint = () => {
         const originalTitle = document.title;
-        // ⭐ 파일명 지정 포맷 반영
         document.title = `[열린 교재점검 리포트]_${data.name}`;
         window.print();
         document.title = originalTitle;
       };
 
-      // 링크 전송 기능
       const handleSendSMS = () => {
         const baseUrl = window.location.href.split('?')[0]; 
         const reportUrl = `${baseUrl}?name=${encodeURIComponent(data.name)}`;
@@ -148,46 +145,44 @@
         window.location.href = `sms:${data.phoneParent}?body=${encodeURIComponent(message)}`;
       };
 
-      // 이미지 캡처 기능 (여백/밀림 완벽 방지)
+      // ⭐ 캡처 버그 완벽 해결 로직 (배경 지정, 렌더링 대기, Wrapper 단위 캡처)
       const handleDownloadImage = async () => {
-        const captureArea = document.getElementById('wide-dashboard');
+        const captureArea = document.getElementById('capture-wrapper'); // 대시보드 안쪽이 아닌, 바깥쪽 래퍼를 통째로 캡처!
         if (!captureArea) return;
         
         await document.fonts.ready;
         
-        // 스크롤을 맨 위로 고정하고 오버플로우를 숨겨 캡처 밀림 원천 차단
         const originalScrollY = window.scrollY;
         window.scrollTo(0, 0); 
-        document.body.style.overflow = "hidden";
+        document.body.style.overflow = "hidden"; // 스크롤바 방해 차단
         
         setTimeout(() => {
           html2canvas(captureArea, { 
             scale: 2, 
-            backgroundColor: "transparent", // 투명하게 처리해 라운드 코너 살리기
+            backgroundColor: "#f1f5f9", // ⭐ 투명(transparent) 제거! 고정색을 넣어 밀림 버그 원천 차단
             useCORS: true,
             logging: false,
             scrollY: 0,
             x: 0,
             y: 0
           }).then(canvas => {
-            document.body.style.overflow = ""; // 복구
+            document.body.style.overflow = ""; 
             window.scrollTo(0, originalScrollY);
             
             const link = document.createElement('a');
-            // ⭐ 파일명 지정 포맷 반영
             link.download = `[열린 교재점검 리포트]_${data.name}.png`;
-            link.href = canvas.toDataURL('image/png');
+            link.href = canvas.toDataURL('image/png', 1.0);
             link.click();
           });
-        }, 200); 
+        }, 400); // ⭐ 렌더링 계산이 완전히 끝나도록 대기 시간 증가
       };
 
       return (
-        <div className="min-h-screen flex flex-col items-center p-4 bg-slate-100">
+        <div className="min-h-screen flex flex-col items-center p-0 bg-slate-100">
           
           {/* 컨트롤 바 (인쇄 안됨) */}
           {!isParentView && (
-            <div className="no-print w-full max-w-[1050px] mb-4 flex items-center justify-between bg-white p-3 rounded-2xl shadow-sm border border-slate-200">
+            <div className="no-print w-full max-w-[1050px] mt-4 mb-2 flex items-center justify-between bg-white p-3 rounded-2xl shadow-sm border border-slate-200">
               <select 
                 className="bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-4 py-2 font-bold outline-none cursor-pointer"
                 value={selectedIdx}
@@ -196,7 +191,6 @@
                 {students.map((s, i) => <option key={i} value={i}>[{s.className}] {s.name}</option>)}
               </select>
               
-              {/* ⭐ 출력 - 링크전송 - 이미지저장 순서 부활 */}
               <div className="flex gap-2">
                 <button onClick={handlePrint} className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold text-sm shadow-md hover:bg-indigo-700 transition active:scale-95 flex items-center gap-1.5"><IconPrinter /> 출력</button>
                 <button onClick={handleSendSMS} className="bg-white border-2 border-blue-600 text-blue-600 px-4 py-2 rounded-xl font-bold text-sm hover:bg-blue-50 transition active:scale-95 flex items-center gap-1.5"><IconSend /> 링크 전송</button>
@@ -205,137 +199,139 @@
             </div>
           )}
 
-          {/* 📸 가로 와이드 대시보드 */}
-          <div id="wide-dashboard" className="w-full max-w-[1050px] bg-white rounded-[32px] shadow-2xl border border-slate-200 flex flex-col min-h-[700px] overflow-hidden">
+          {/* ⭐ 캡처 시 여백/모서리 깨짐을 방지하기 위한 안전 래퍼 (Wrapper) */}
+          <div id="capture-wrapper" className="w-full flex justify-center bg-slate-100 p-4 pb-12">
             
-            {/* 상단 헤더 */}
-            <div className="bg-slate-900 text-white px-8 py-6 flex justify-between items-center relative">
-               <div className="flex items-center gap-6">
-                 {/* ⭐ 로고 흰색 수채화 필터 적용 */}
-                 <img src={LOGO_FILENAME} alt="Logo" className="h-10 object-contain drop-shadow-md" style={{ filter: 'brightness(0) invert(1) opacity(0.85)' }} onError={(e) => e.target.style.display='none'} />
-                 <div className="h-8 w-px bg-slate-700"></div>
-                 <div>
-                    <h2 className="text-3xl font-black leading-none">{data.name} <span className="text-lg font-medium text-slate-400">학생</span></h2>
-                    <p className="text-slate-400 text-xs font-bold mt-2 uppercase tracking-tighter">{data.className} | 교재점검 누적리포트</p>
-                 </div>
-               </div>
-               <div className="flex items-center gap-4 bg-slate-800/50 px-6 py-3 rounded-2xl border border-slate-700">
-                  <div className="text-right">
-                    {/* ⭐ TOTAL RATE 색상을 흰색으로 */}
-                    <p className="text-[10px] font-black text-white uppercase tracking-widest leading-none mb-1">TOTAL RATE</p>
-                    {/* ⭐ 토탈 점수 다이나믹 색상 */}
-                    <p className={`text-2xl font-black ${rateStyle.text} leading-none`}>{data.overallRate}%</p>
-                  </div>
-                  <div className={`w-10 h-10 rounded-full ${rateStyle.bg} flex items-center justify-center font-black text-white shadow-lg`}>✓</div>
-               </div>
-            </div>
-
-            {/* 본문 콘텐츠: grid와 items-start를 통해 코멘트 박스 높이 유동성 확보 */}
-            <div className="p-8 grid grid-cols-12 gap-8 flex-1 items-start">
+            {/* 📸 가로 와이드 대시보드 */}
+            <div id="wide-dashboard" className="w-full max-w-[1050px] bg-white rounded-[32px] shadow-2xl border border-slate-200 flex flex-col min-h-[700px] overflow-hidden">
               
-              {/* 왼쪽: 추이 및 총평 (4칸) */}
-              <div className="col-span-4 flex flex-col gap-6">
-                
-                {/* 추이 박스 */}
-                <div className="flex flex-col">
-                  {/* ⭐ 오른쪽과 완벽히 정렬되는 제목 라인 */}
-                  <div className="flex items-center gap-2 mb-2 h-6">
-                    <IconTrend />
-                    <h3 className="text-sm font-black text-slate-800 tracking-tight">최근 과제 수행 추이</h3>
-                  </div>
-                  <section className="bg-white rounded-[24px] p-6 border border-slate-200 shadow-sm">
-                    <div className="space-y-6">
-                      {data.sessionRates.slice(-4).map((s, i) => {
-                        {/* ⭐ 추이 그래프 막대 색상을 실제 회차 색상(colorPalette)과 연동 */}
-                        const cIdx = allSessions.indexOf(s.session);
-                        const barColor = cIdx !== -1 ? colorPalette[cIdx % colorPalette.length] : '#3b82f6';
-                        
-                        return (
-                          <div key={i} className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-500">{s.session}</span>
-                            <div className="flex-1 mx-4 h-2 bg-slate-200 rounded-full overflow-hidden">
-                              <div className="h-full" style={{width: `${s.rate}%`, backgroundColor: barColor}}></div>
-                            </div>
-                            <span className="text-xs font-black text-slate-800 w-8 text-right">{s.rate}%</span>
-                          </div>
-                        )
-                      })}
+              {/* 상단 헤더 */}
+              <div className="bg-slate-900 text-white px-8 py-6 flex justify-between items-center relative">
+                 <div className="flex items-center gap-6">
+                   <img src={LOGO_FILENAME} alt="Logo" className="h-10 object-contain drop-shadow-md" style={{ filter: 'brightness(0) invert(1) opacity(0.85)' }} onError={(e) => e.target.style.display='none'} />
+                   <div className="h-8 w-px bg-slate-700"></div>
+                   <div>
+                      {/* ⭐ leading-tight로 변경하여 폰트 윗부분 짤림 방지 */}
+                      <h2 className="text-3xl font-black leading-tight flex items-end gap-2">{data.name} <span className="text-lg font-medium text-slate-400 mb-0.5">학생</span></h2>
+                      <p className="text-slate-400 text-xs font-bold mt-1 uppercase tracking-tighter leading-tight">{data.className} | 교재점검 누적리포트</p>
+                   </div>
+                 </div>
+                 <div className="flex items-center gap-4 bg-slate-800/50 px-6 py-3 rounded-2xl border border-slate-700">
+                    <div className="text-right">
+                      <p className="text-[10px] font-black text-white uppercase tracking-widest leading-tight mb-1">TOTAL RATE</p>
+                      <p className={`text-2xl font-black ${rateStyle.text} leading-tight`}>{data.overallRate}%</p>
                     </div>
+                    <div className={`w-10 h-10 rounded-full ${rateStyle.bg} flex items-center justify-center font-black text-white shadow-lg`}>✓</div>
+                 </div>
+              </div>
+
+              {/* 본문 콘텐츠 */}
+              <div className="p-8 grid grid-cols-12 gap-8 flex-1 items-start">
+                
+                {/* 왼쪽: 추이 및 총평 (4칸) */}
+                <div className="col-span-4 flex flex-col gap-6">
+                  
+                  {/* 추이 박스 */}
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2 mb-2 h-6">
+                      <IconTrend />
+                      <h3 className="text-sm font-black text-slate-800 tracking-tight">최근 과제 수행 추이</h3>
+                    </div>
+                    <section className="bg-white rounded-[24px] p-6 border border-slate-200 shadow-sm">
+                      {/* ⭐ space-y 대신 flex flex-col gap 사용 (캡처 엔진 호환성 극대화) */}
+                      <div className="flex flex-col gap-6">
+                        {data.sessionRates.slice(-4).map((s, i) => {
+                          const cIdx = allSessions.indexOf(s.session);
+                          const barColor = cIdx !== -1 ? colorPalette[cIdx % colorPalette.length] : '#3b82f6';
+                          
+                          return (
+                            <div key={i} className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-slate-500">{s.session}</span>
+                              <div className="flex-1 mx-4 h-2 bg-slate-200 rounded-full overflow-hidden">
+                                <div className="h-full" style={{width: `${s.rate}%`, backgroundColor: barColor}}></div>
+                              </div>
+                              <span className="text-xs font-black text-slate-800 w-8 text-right">{s.rate}%</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </section>
+                  </div>
+
+                  {/* 선생님 코멘트 박스 */}
+                  <section className="bg-indigo-50/50 rounded-[24px] p-6 border border-indigo-100 relative mt-2 flex-none">
+                    <div className="absolute -top-4 left-6 bg-white px-4 py-1.5 rounded-full border border-indigo-100 flex items-center gap-2 text-indigo-600 font-black text-[11px] shadow-sm">
+                      <IconMsg /> Teacher's Comment
+                    </div>
+                    <p className="text-slate-700 text-xs leading-relaxed font-bold whitespace-pre-wrap pt-3">
+                      {data.teacherComment || "열심히 하고 있습니다. 오답 보완에 좀 더 집중합시다!"}
+                    </p>
                   </section>
                 </div>
 
-                {/* ⭐ 선생님 코멘트 박스 */}
-                <section className="bg-indigo-50/50 rounded-[24px] p-6 border border-indigo-100 relative mt-2 flex-none">
-                  <div className="absolute -top-4 left-6 bg-white px-4 py-1.5 rounded-full border border-indigo-100 flex items-center gap-2 text-indigo-600 font-black text-[11px] shadow-sm">
-                    <IconMsg /> Teacher's Comment
+                {/* 오른쪽: 단원별 현황 (8칸, 가로 2단 나열) */}
+                <div className="col-span-8 flex flex-col">
+                  
+                  <div className="flex justify-between items-center mb-2 h-6">
+                    <h3 className="text-sm font-black text-slate-800 flex items-center gap-2"><IconBook /> 단원별 누적 학습 현황</h3>
+                    <div className="flex gap-2">
+                      {allSessions.map((sess, idx) => (
+                        <div key={idx} className="flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-md text-[9px] font-bold text-slate-500">
+                          <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colorPalette[idx % colorPalette.length] }}></div>{sess}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <p className="text-slate-700 text-xs leading-relaxed font-bold whitespace-pre-wrap pt-3">
-                    {data.teacherComment || "열심히 하고 있습니다. 오답 보완에 좀 더 집중합시다!"}
-                  </p>
-                </section>
-              </div>
 
-              {/* 오른쪽: 단원별 현황 (8칸, 가로 2단 나열) */}
-              <div className="col-span-8 flex flex-col">
-                
-                <div className="flex justify-between items-center mb-2 h-6">
-                  <h3 className="text-sm font-black text-slate-800 flex items-center gap-2"><IconBook /> 단원별 누적 학습 현황</h3>
-                  <div className="flex gap-2">
-                    {allSessions.map((sess, idx) => (
-                      <div key={idx} className="flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-md text-[9px] font-bold text-slate-500">
-                        <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colorPalette[idx % colorPalette.length] }}></div>{sess}
+                  {/* 교재 리스트 가로 2단 나열 */}
+                  <div className={`grid gap-4 ${data.books.length > 1 ? 'grid-cols-2' : 'grid-cols-1'} items-start`}>
+                    {data.books.map((book, bIdx) => (
+                      <div key={bIdx} className="bg-white rounded-[24px] border border-slate-200 shadow-sm flex flex-col overflow-hidden">
+                        <div className="bg-slate-50 px-4 py-3 border-b border-slate-100 text-xs font-black text-slate-800">{book.name}</div>
+                        <div className="p-4 flex flex-col gap-5">
+                          {book.units.map((unit, uIdx) => {
+                            const done = unit.sessions.reduce((a, b) => a + b.pagesDone, 0);
+                            const rate = unit.totalPages > 0 ? Math.round((done/unit.totalPages)*100) : 0;
+                            return (
+                              <div key={uIdx} className="flex flex-col gap-1.5">
+                                {/* ⭐ align-items 대신 items-end 사용, truncate(자르기) 제거 및 break-keep 적용으로 글씨 잘림/밀림 원천 차단 */}
+                                <div className="flex justify-between items-end text-[10px] font-bold">
+                                  <span className="text-slate-600 break-keep leading-tight">
+                                    {unit.name} <span className="text-slate-400 font-normal ml-0.5">
+                                      {unit.startPage && unit.endPage ? `(${unit.startPage}p~${unit.endPage}p, 총 ${unit.totalPages}p)` : `(총 ${unit.totalPages}p)`}
+                                    </span>
+                                  </span>
+                                  <span className={`shrink-0 ml-2 leading-tight ${rate >= 100 ? 'text-blue-600' : 'text-slate-400'}`}>{rate}%</span>
+                                </div>
+                                <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
+                                  {unit.sessions.map((s, si) => {
+                                    const w = (s.pagesDone/unit.totalPages)*100;
+                                    const c = colorPalette[allSessions.indexOf(s.name) % colorPalette.length];
+                                    return <div key={si} style={{width:`${w}%`, backgroundColor:c}} className="h-full border-r border-white/20 last:border-0" />
+                                  })}
+                                </div>
+                                {unit.uncompleted && String(unit.uncompleted).trim() !== "" && (
+                                  <div className="flex items-center gap-1 text-[8px] font-black text-rose-500 leading-none mt-0.5">
+                                     <IconAlert /> {String(unit.uncompleted).includes('결석') ? '결석' : `미완료: ${unit.uncompleted}p`}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* 교재 리스트 가로 2단 나열 */}
-                <div className={`grid gap-4 ${data.books.length > 1 ? 'grid-cols-2' : 'grid-cols-1'} items-start`}>
-                  {data.books.map((book, bIdx) => (
-                    <div key={bIdx} className="bg-white rounded-[24px] border border-slate-200 shadow-sm flex flex-col overflow-hidden">
-                      <div className="bg-slate-50 px-4 py-3 border-b border-slate-100 text-xs font-black text-slate-800">{book.name}</div>
-                      <div className="p-4 space-y-5">
-                        {book.units.map((unit, uIdx) => {
-                          const done = unit.sessions.reduce((a, b) => a + b.pagesDone, 0);
-                          const rate = unit.totalPages > 0 ? Math.round((done/unit.totalPages)*100) : 0;
-                          return (
-                            <div key={uIdx} className="space-y-1.5">
-                              <div className="flex justify-between items-center text-[10px] font-bold">
-                                {/* ⭐ 백엔드에서 받아온 시작/끝 페이지와 총 페이지 동시 표시 */}
-                                <span className="text-slate-600 truncate max-w-[70%]">
-                                  {unit.name} <span className="text-slate-400 font-normal ml-0.5">
-                                    {unit.startPage && unit.endPage ? `(${unit.startPage}p~${unit.endPage}p, 총 ${unit.totalPages}p)` : `(총 ${unit.totalPages}p)`}
-                                  </span>
-                                </span>
-                                <span className={rate >= 100 ? 'text-blue-600' : 'text-slate-400'}>{rate}%</span>
-                              </div>
-                              <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
-                                {unit.sessions.map((s, si) => {
-                                  const w = (s.pagesDone/unit.totalPages)*100;
-                                  const c = colorPalette[allSessions.indexOf(s.name) % colorPalette.length];
-                                  return <div key={si} style={{width:`${w}%`, backgroundColor:c}} className="h-full border-r border-white/20 last:border-0" />
-                                })}
-                              </div>
-                              {unit.uncompleted && String(unit.uncompleted).trim() !== "" && (
-                                <div className="flex items-center gap-1 text-[8px] font-black text-rose-500 leading-none">
-                                   <IconAlert /> {String(unit.uncompleted).includes('결석') ? '결석' : `미완료: ${unit.uncompleted}p`}
-                                </div>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
               </div>
 
+              {/* 하단 푸터 */}
+              <div className="bg-slate-50 px-8 py-4 text-center border-t border-slate-100 mt-auto">
+                 <p className="text-[9px] font-black text-slate-300 tracking-[0.4em] uppercase">Moonsan Yeollin Math Premium Smart Report System</p>
+              </div>
             </div>
-
-            {/* 하단 푸터 */}
-            <div className="bg-slate-50 px-8 py-4 text-center border-t border-slate-100 mt-auto">
-               <p className="text-[9px] font-black text-slate-300 tracking-[0.4em] uppercase">Moonsan Yeollin Math Premium Smart Report System</p>
-            </div>
+            
           </div>
         </div>
       );
