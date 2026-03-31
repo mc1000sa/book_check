@@ -167,76 +167,66 @@
       };
 
       const handleDownloadImage = async () => {
-        const captureArea = document.getElementById('wide-dashboard');
-        if (!captureArea) return;
+        const source = document.getElementById('wide-dashboard');
+        if (!source) return;
 
         await document.fonts.ready;
 
-        const originalScrollX = window.scrollX;
-        const originalScrollY = window.scrollY;
-        const originalOverflow = document.body.style.overflow;
-        const prevTransform = captureArea.style.transform;
+        const rect = source.getBoundingClientRect();
+        const clone = source.cloneNode(true);
 
-        window.scrollTo(0, 0);
-        document.body.style.overflow = "hidden";
-        captureArea.style.transform = "translateZ(0)";
+        const sandbox = document.createElement('div');
+        sandbox.style.position = 'fixed';
+        sandbox.style.left = '0';
+        sandbox.style.top = '0';
+        sandbox.style.width = rect.width + 'px';
+        sandbox.style.height = rect.height + 'px';
+        sandbox.style.padding = '0';
+        sandbox.style.margin = '0';
+        sandbox.style.background = '#ffffff';
+        sandbox.style.zIndex = '-1';
+        sandbox.style.overflow = 'hidden';
+        sandbox.style.pointerEvents = 'none';
 
-        const captureWidth = captureArea.offsetWidth;
-        const captureHeight = captureArea.offsetHeight;
+        clone.style.width = rect.width + 'px';
+        clone.style.maxWidth = rect.width + 'px';
+        clone.style.minHeight = rect.height + 'px';
+        clone.style.margin = '0';
+        clone.style.borderRadius = '32px';
+        clone.style.overflow = 'hidden';
+        clone.style.boxSizing = 'border-box';
+        clone.style.transform = 'none';
 
-        setTimeout(async () => {
-          try {
-            const canvas = await html2canvas(captureArea, {
-              scale: 2,
-              backgroundColor: "#ffffff",
-              useCORS: true,
-              logging: false,
-              scrollX: 0,
-              scrollY: 0,
-              width: captureWidth,
-              height: captureHeight,
-              windowWidth: document.documentElement.clientWidth,
-              windowHeight: document.documentElement.clientHeight,
-              foreignObjectRendering: true,
-              onclone: (clonedDoc) => {
-                const clonedWrapper = clonedDoc.getElementById('capture-wrapper');
-                const clonedCapture = clonedDoc.getElementById('wide-dashboard');
+        sandbox.appendChild(clone);
+        document.body.appendChild(sandbox);
 
-                clonedDoc.documentElement.style.background = "#ffffff";
-                clonedDoc.body.style.background = "#ffffff";
-                clonedDoc.body.style.margin = "0";
-                clonedDoc.body.style.padding = "0";
-                clonedDoc.body.style.overflow = "hidden";
+        try {
+          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
-                if (clonedWrapper) {
-                  clonedWrapper.style.background = "#ffffff";
-                  clonedWrapper.style.padding = "0";
-                  clonedWrapper.style.margin = "0";
-                  clonedWrapper.style.display = "flex";
-                  clonedWrapper.style.justifyContent = "center";
-                  clonedWrapper.style.alignItems = "flex-start";
-                }
+          const canvas = await html2canvas(clone, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            logging: false,
+            scrollX: 0,
+            scrollY: 0,
+            x: 0,
+            y: 0,
+            width: Math.round(rect.width),
+            height: Math.round(rect.height),
+            windowWidth: Math.round(rect.width),
+            windowHeight: Math.round(rect.height)
+          });
 
-                if (clonedCapture) {
-                  clonedCapture.style.margin = "0 auto";
-                  clonedCapture.style.transform = "none";
-                  clonedCapture.style.overflow = "hidden";
-                }
-              }
-            });
-
-            const link = document.createElement('a');
-            link.download = `[열린 교재점검 리포트]_${data.name}.png`;
-            link.href = canvas.toDataURL('image/png', 1.0);
-            link.click();
-          } catch (err) {
-            alert("이미지 저장 중 오류가 발생했습니다: " + err.message);
-          } finally {
-            captureArea.style.transform = prevTransform;
-            document.body.style.overflow = originalOverflow;
-            window.scrollTo(originalScrollX, originalScrollY);
-          }
-        }, 250);
+          const link = document.createElement('a');
+          link.download = `[열린 교재점검 리포트]_${data.name}.png`;
+          link.href = canvas.toDataURL('image/png', 1.0);
+          link.click();
+        } catch (err) {
+          alert("이미지 저장 중 오류가 발생했습니다: " + err.message);
+        } finally {
+          document.body.removeChild(sandbox);
+        }
       };
 
       return (
