@@ -24,22 +24,30 @@
       line-height: 1.2;
     }
 
-    /* 인쇄 시 스타일 (A4 가로 최적화) */
+    /* ⭐ 출력 시 정확히 1페이지에 라운드 처리되어 들어가도록 최적화 */
     @media print {
       @page {
         size: A4 landscape;
-        margin: 0;
+        margin: 5mm; /* 종이에 약간 여백을 주어 라운드가 잘리지 않게 함 */
       }
-      body { background-color: white !important; padding: 0 !important; }
+      body { 
+        background-color: white !important; 
+        padding: 0 !important; 
+        -webkit-print-color-adjust: exact !important; 
+        print-color-adjust: exact !important;
+      }
       .no-print { display: none !important; }
       #wide-dashboard {
-        width: 100% !important;
+        width: 287mm !important; /* A4 가로(297)보다 약간 작게 */
+        height: 200mm !important; /* A4 세로(210)보다 약간 작게 (2장 넘어감 방지) */
         max-width: none !important;
-        margin: 0 !important;
-        border-radius: 0 !important;
+        margin: auto !important;
+        border-radius: 32px !important; /* 인쇄 시에도 라운드 유지 */
         box-shadow: none !important;
-        border: none !important;
-        height: 100vh !important;
+        border: 2px solid #e2e8f0 !important; /* 테두리를 주어 깔끔하게 */
+        overflow: hidden !important;
+        page-break-after: avoid;
+        page-break-inside: avoid;
       }
     }
 
@@ -63,7 +71,7 @@
 
     const colorPalette = ["#3b82f6", "#9333ea", "#0ea5e9", "#eab308", "#ec4899", "#10b981", "#f97316", "#14b8a6"];
 
-    // ⭐ 1. 구글 앱스 스크립트 웹앱 주소 입력
+    // ⭐ 1. 구글 앱스 스크립트 웹앱 주소 입력 (알려주신 최신 백엔드 주소 적용!)
     const GAS_API_URL = "https://script.google.com/macros/s/AKfycbya59NwpvmaaPXbhvuvIDf4spaGy_M7m4nzjgqykvlGUdIf6Hmd5veavpVal_ogFwpD9w/exec"; 
 
     // ⭐ 2. 깃허브 로고 파일명
@@ -114,13 +122,25 @@
       }
       allSessions.sort();
 
+      // ⭐ 토탈 레이트 점수별 동적 색상 지정 (파스텔 톤)
+      const getRateStyle = (rate) => {
+        if (rate < 50) return { bg: 'bg-rose-500', text: 'text-rose-200' };
+        if (rate < 70) return { bg: 'bg-purple-500', text: 'text-purple-200' };
+        if (rate < 90) return { bg: 'bg-emerald-500', text: 'text-emerald-200' };
+        return { bg: 'bg-blue-500', text: 'text-blue-200' };
+      };
+      const rateStyle = getRateStyle(data.overallRate);
+
+      // 출력 기능
       const handlePrint = () => {
         const originalTitle = document.title;
-        document.title = `[열린학원리포트]_${data.name}`;
+        // ⭐ 파일명 지정 포맷 반영
+        document.title = `[열린 교재점검 리포트]_${data.name}`;
         window.print();
         document.title = originalTitle;
       };
 
+      // 링크 전송 기능
       const handleSendSMS = () => {
         const baseUrl = window.location.href.split('?')[0]; 
         const reportUrl = `${baseUrl}?name=${encodeURIComponent(data.name)}`;
@@ -128,26 +148,34 @@
         window.location.href = `sms:${data.phoneParent}?body=${encodeURIComponent(message)}`;
       };
 
+      // 이미지 캡처 기능 (여백/밀림 완벽 방지)
       const handleDownloadImage = async () => {
         const captureArea = document.getElementById('wide-dashboard');
         if (!captureArea) return;
         
         await document.fonts.ready;
+        
+        // 스크롤을 맨 위로 고정하고 오버플로우를 숨겨 캡처 밀림 원천 차단
         const originalScrollY = window.scrollY;
         window.scrollTo(0, 0); 
+        document.body.style.overflow = "hidden";
         
         setTimeout(() => {
           html2canvas(captureArea, { 
             scale: 2, 
-            backgroundColor: "#f1f5f9", 
+            backgroundColor: "transparent", // 투명하게 처리해 라운드 코너 살리기
             useCORS: true,
             logging: false,
-            width: captureArea.offsetWidth,
-            height: captureArea.offsetHeight
+            scrollY: 0,
+            x: 0,
+            y: 0
           }).then(canvas => {
+            document.body.style.overflow = ""; // 복구
             window.scrollTo(0, originalScrollY);
+            
             const link = document.createElement('a');
-            link.download = `[열린학원리포트]_${data.name}.png`;
+            // ⭐ 파일명 지정 포맷 반영
+            link.download = `[열린 교재점검 리포트]_${data.name}.png`;
             link.href = canvas.toDataURL('image/png');
             link.click();
           });
@@ -167,6 +195,8 @@
               >
                 {students.map((s, i) => <option key={i} value={i}>[{s.className}] {s.name}</option>)}
               </select>
+              
+              {/* ⭐ 출력 - 링크전송 - 이미지저장 순서 부활 */}
               <div className="flex gap-2">
                 <button onClick={handlePrint} className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold text-sm shadow-md hover:bg-indigo-700 transition active:scale-95 flex items-center gap-1.5"><IconPrinter /> 출력</button>
                 <button onClick={handleSendSMS} className="bg-white border-2 border-blue-600 text-blue-600 px-4 py-2 rounded-xl font-bold text-sm hover:bg-blue-50 transition active:scale-95 flex items-center gap-1.5"><IconSend /> 링크 전송</button>
@@ -175,75 +205,79 @@
             </div>
           )}
 
-          {/* 📸 가로 와이드 대시보드 (A4 가로 꽉 차게 설계) */}
-          <div id="wide-dashboard" className="w-full max-w-[1050px] bg-white rounded-[32px] overflow-hidden shadow-2xl border border-slate-200 flex flex-col min-h-[720px]">
+          {/* 📸 가로 와이드 대시보드 */}
+          <div id="wide-dashboard" className="w-full max-w-[1050px] bg-white rounded-[32px] shadow-2xl border border-slate-200 flex flex-col min-h-[700px] overflow-hidden">
             
             {/* 상단 헤더 */}
             <div className="bg-slate-900 text-white px-8 py-6 flex justify-between items-center relative">
                <div className="flex items-center gap-6">
-                 {/* ⭐ 로고 필터 적용: 흰색 수채화 느낌으로 변경 (brightness, invert, opacity) */}
+                 {/* ⭐ 로고 흰색 수채화 필터 적용 */}
                  <img src={LOGO_FILENAME} alt="Logo" className="h-10 object-contain drop-shadow-md" style={{ filter: 'brightness(0) invert(1) opacity(0.85)' }} onError={(e) => e.target.style.display='none'} />
                  <div className="h-8 w-px bg-slate-700"></div>
                  <div>
                     <h2 className="text-3xl font-black leading-none">{data.name} <span className="text-lg font-medium text-slate-400">학생</span></h2>
-                    {/* ⭐ 텍스트 변경: 교재점검 누적리포트 */}
                     <p className="text-slate-400 text-xs font-bold mt-2 uppercase tracking-tighter">{data.className} | 교재점검 누적리포트</p>
                  </div>
                </div>
                <div className="flex items-center gap-4 bg-slate-800/50 px-6 py-3 rounded-2xl border border-slate-700">
                   <div className="text-right">
-                    {/* ⭐ TOTAL RATE 색상 화이트로 변경 */}
+                    {/* ⭐ TOTAL RATE 색상을 흰색으로 */}
                     <p className="text-[10px] font-black text-white uppercase tracking-widest leading-none mb-1">TOTAL RATE</p>
-                    <p className="text-2xl font-black text-rose-200 leading-none">{data.overallRate}%</p>
+                    {/* ⭐ 토탈 점수 다이나믹 색상 */}
+                    <p className={`text-2xl font-black ${rateStyle.text} leading-none`}>{data.overallRate}%</p>
                   </div>
-                  {/* ⭐ 70% 박스 파스텔 로즈 계열로 변경 */}
-                  <div className="w-10 h-10 rounded-full bg-rose-500 flex items-center justify-center font-black text-white shadow-lg">✓</div>
+                  <div className={`w-10 h-10 rounded-full ${rateStyle.bg} flex items-center justify-center font-black text-white shadow-lg`}>✓</div>
                </div>
             </div>
 
-            {/* 본문 콘텐츠: grid와 items-stretch를 통해 양쪽 높이 자동 맞춤 */}
-            <div className="p-8 grid grid-cols-12 gap-8 flex-1 items-stretch">
+            {/* 본문 콘텐츠: grid와 items-start를 통해 코멘트 박스 높이 유동성 확보 */}
+            <div className="p-8 grid grid-cols-12 gap-8 flex-1 items-start">
               
               {/* 왼쪽: 추이 및 총평 (4칸) */}
-              <div className="col-span-4 flex flex-col h-full gap-5">
+              <div className="col-span-4 flex flex-col gap-6">
                 
-                {/* 추이 박스 (제목을 박스 밖으로 뺌) */}
+                {/* 추이 박스 */}
                 <div className="flex flex-col">
-                  {/* ⭐ 오른쪽 '단원별 누적 학습 현황'과 완벽히 정렬되는 높이 24px(h-6) 설정 */}
+                  {/* ⭐ 오른쪽과 완벽히 정렬되는 제목 라인 */}
                   <div className="flex items-center gap-2 mb-2 h-6">
                     <IconTrend />
                     <h3 className="text-sm font-black text-slate-800 tracking-tight">최근 과제 수행 추이</h3>
                   </div>
                   <section className="bg-white rounded-[24px] p-6 border border-slate-200 shadow-sm">
                     <div className="space-y-6">
-                      {data.sessionRates.slice(-4).map((s, i) => (
-                        <div key={i} className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-slate-500">{s.session}</span>
-                          <div className="flex-1 mx-4 h-2 bg-slate-200 rounded-full overflow-hidden">
-                            <div className="h-full bg-blue-500" style={{width: `${s.rate}%`}}></div>
+                      {data.sessionRates.slice(-4).map((s, i) => {
+                        {/* ⭐ 추이 그래프 막대 색상을 실제 회차 색상(colorPalette)과 연동 */}
+                        const cIdx = allSessions.indexOf(s.session);
+                        const barColor = cIdx !== -1 ? colorPalette[cIdx % colorPalette.length] : '#3b82f6';
+                        
+                        return (
+                          <div key={i} className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-500">{s.session}</span>
+                            <div className="flex-1 mx-4 h-2 bg-slate-200 rounded-full overflow-hidden">
+                              <div className="h-full" style={{width: `${s.rate}%`, backgroundColor: barColor}}></div>
+                            </div>
+                            <span className="text-xs font-black text-slate-800 w-8 text-right">{s.rate}%</span>
                           </div>
-                          <span className="text-xs font-black text-slate-800 w-8 text-right">{s.rate}%</span>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   </section>
                 </div>
 
-                {/* 선생님 코멘트 박스 (flex-1로 하단 빈 공간을 꽉 채우며 유동적으로 늘어남) */}
-                <section className="bg-indigo-50/50 rounded-[24px] p-6 border border-indigo-100 flex-1 relative mt-2 flex flex-col">
+                {/* ⭐ 선생님 코멘트 박스 */}
+                <section className="bg-indigo-50/50 rounded-[24px] p-6 border border-indigo-100 relative mt-2 flex-none">
                   <div className="absolute -top-4 left-6 bg-white px-4 py-1.5 rounded-full border border-indigo-100 flex items-center gap-2 text-indigo-600 font-black text-[11px] shadow-sm">
-                    <IconMsg /> 선생님의 한마디
+                    <IconMsg /> Teacher's Comment
                   </div>
-                  <p className="text-slate-700 text-xs leading-relaxed font-bold whitespace-pre-wrap pt-3 italic flex-1">
-                    "{data.teacherComment || "열심히 하고 있습니다. 오답 보완에 좀 더 집중합시다!"}"
+                  <p className="text-slate-700 text-xs leading-relaxed font-bold whitespace-pre-wrap pt-3">
+                    {data.teacherComment || "열심히 하고 있습니다. 오답 보완에 좀 더 집중합시다!"}
                   </p>
                 </section>
               </div>
 
               {/* 오른쪽: 단원별 현황 (8칸, 가로 2단 나열) */}
-              <div className="col-span-8 flex flex-col h-full">
+              <div className="col-span-8 flex flex-col">
                 
-                {/* 단원별 현황 제목 (왼쪽 추이 제목과 높이 h-6 완벽 일치) */}
                 <div className="flex justify-between items-center mb-2 h-6">
                   <h3 className="text-sm font-black text-slate-800 flex items-center gap-2"><IconBook /> 단원별 누적 학습 현황</h3>
                   <div className="flex gap-2">
@@ -267,8 +301,12 @@
                           return (
                             <div key={uIdx} className="space-y-1.5">
                               <div className="flex justify-between items-center text-[10px] font-bold">
-                                {/* ⭐ 단원 페이지 표시 구체화 (시작/끝 정보가 없으므로 총 페이지만 명확히 표시) */}
-                                <span className="text-slate-600 truncate max-w-[70%]">{unit.name} <span className="text-slate-400 font-normal ml-0.5">(총 {unit.totalPages}p)</span></span>
+                                {/* ⭐ 백엔드에서 받아온 시작/끝 페이지와 총 페이지 동시 표시 */}
+                                <span className="text-slate-600 truncate max-w-[70%]">
+                                  {unit.name} <span className="text-slate-400 font-normal ml-0.5">
+                                    {unit.startPage && unit.endPage ? `(${unit.startPage}p~${unit.endPage}p, 총 ${unit.totalPages}p)` : `(총 ${unit.totalPages}p)`}
+                                  </span>
+                                </span>
                                 <span className={rate >= 100 ? 'text-blue-600' : 'text-slate-400'}>{rate}%</span>
                               </div>
                               <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
