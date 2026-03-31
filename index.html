@@ -9,7 +9,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.6/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
   <style>
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
@@ -22,7 +21,6 @@
       margin: 0;
       padding: 0;
       -webkit-font-smoothing: antialiased;
-      text-rendering: geometricPrecision;
       line-height: 1.4;
     }
 
@@ -153,479 +151,351 @@
         window.location.href = `sms:${data.phoneParent}?body=${encodeURIComponent(message)}`;
       };
 
-      const buildCaptureDOM = (data, allSessions) => {
-        const outer = document.createElement('div');
-        outer.style.position = 'fixed';
-        outer.style.left = '0';
-        outer.style.top = '0';
-        outer.style.width = '1050px';
-        outer.style.height = '700px';
-        outer.style.background = '#ffffff';
-        outer.style.padding = '0';
-        outer.style.margin = '0';
-        outer.style.zIndex = '-9999';
-        outer.style.overflow = 'hidden';
-        outer.style.fontFamily = "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif";
-        outer.style.boxSizing = 'border-box';
-
-        const card = document.createElement('div');
-        card.style.width = '1050px';
-        card.style.height = '700px';
-        card.style.background = '#ffffff';
-        card.style.border = '1px solid #e2e8f0';
-        card.style.borderRadius = '32px';
-        card.style.overflow = 'hidden';
-        card.style.boxShadow = '0 20px 40px rgba(15,23,42,0.12)';
-        card.style.position = 'relative';
-        card.style.boxSizing = 'border-box';
-
-        const header = document.createElement('div');
-        header.style.height = '138px';
-        header.style.background = '#0f172a';
-        header.style.color = '#ffffff';
-        header.style.padding = '24px 32px';
-        header.style.display = 'flex';
-        header.style.justifyContent = 'space-between';
-        header.style.alignItems = 'center';
-        header.style.boxSizing = 'border-box';
-
-        const headerLeft = document.createElement('div');
-        headerLeft.style.display = 'flex';
-        headerLeft.style.alignItems = 'center';
-        headerLeft.style.gap = '24px';
-
-        const logo = document.createElement('img');
-        logo.src = LOGO_FILENAME;
-        logo.style.height = '40px';
-        logo.style.objectFit = 'contain';
-        logo.style.filter = 'brightness(0) invert(1) opacity(0.85)';
-        logo.onerror = () => { logo.style.display = 'none'; };
-
-        const divider = document.createElement('div');
-        divider.style.width = '1px';
-        divider.style.height = '32px';
-        divider.style.background = '#334155';
-
-        const titleWrap = document.createElement('div');
-
-        const titleRow = document.createElement('div');
-        titleRow.style.display = 'flex';
-        titleRow.style.alignItems = 'flex-end';
-        titleRow.style.gap = '8px';
-        titleRow.style.lineHeight = '1';
-
-        const title = document.createElement('div');
-        title.textContent = data.name;
-        title.style.fontSize = '50px';
-        title.style.fontWeight = '900';
-        title.style.color = '#ffffff';
-        title.style.lineHeight = '1';
-
-        const titleSub = document.createElement('div');
-        titleSub.textContent = '학생';
-        titleSub.style.fontSize = '24px';
-        titleSub.style.fontWeight = '500';
-        titleSub.style.color = '#94a3b8';
-        titleSub.style.lineHeight = '1';
-        titleSub.style.paddingBottom = '4px';
-
-        const classText = document.createElement('div');
-        classText.textContent = `${data.className} | 교재점검 누적리포트`;
-        classText.style.marginTop = '8px';
-        classText.style.fontSize = '13px';
-        classText.style.fontWeight = '700';
-        classText.style.color = '#94a3b8';
-        classText.style.lineHeight = '1.2';
-
-        titleRow.appendChild(title);
-        titleRow.appendChild(titleSub);
-        titleWrap.appendChild(titleRow);
-        titleWrap.appendChild(classText);
-
-        headerLeft.appendChild(logo);
-        headerLeft.appendChild(divider);
-        headerLeft.appendChild(titleWrap);
-
-        const rateBox = document.createElement('div');
-        rateBox.style.display = 'flex';
-        rateBox.style.alignItems = 'center';
-        rateBox.style.gap = '16px';
-        rateBox.style.background = 'rgba(30,41,59,0.7)';
-        rateBox.style.border = '1px solid #334155';
-        rateBox.style.borderRadius = '18px';
-        rateBox.style.padding = '16px 24px';
-
-        const rateTextWrap = document.createElement('div');
-        rateTextWrap.style.textAlign = 'right';
-
-        const rateLabel = document.createElement('div');
-        rateLabel.textContent = 'TOTAL RATE';
-        rateLabel.style.fontSize = '12px';
-        rateLabel.style.fontWeight = '900';
-        rateLabel.style.color = '#ffffff';
-        rateLabel.style.letterSpacing = '0.12em';
-        rateLabel.style.lineHeight = '1.2';
-        rateLabel.style.marginBottom = '6px';
-
-        const rateValue = document.createElement('div');
-        rateValue.textContent = `${data.overallRate}%`;
-        rateValue.style.fontSize = '28px';
-        rateValue.style.fontWeight = '900';
-        rateValue.style.lineHeight = '1';
-        rateValue.style.color =
-          data.overallRate < 50 ? '#fecdd3' :
-          data.overallRate < 70 ? '#e9d5ff' :
-          data.overallRate < 90 ? '#a7f3d0' : '#bfdbfe';
-
-        const rateCircle = document.createElement('div');
-        rateCircle.textContent = '✓';
-        rateCircle.style.width = '54px';
-        rateCircle.style.height = '54px';
-        rateCircle.style.borderRadius = '9999px';
-        rateCircle.style.display = 'flex';
-        rateCircle.style.alignItems = 'center';
-        rateCircle.style.justifyContent = 'center';
-        rateCircle.style.fontWeight = '900';
-        rateCircle.style.fontSize = '24px';
-        rateCircle.style.color = '#ffffff';
-        rateCircle.style.background =
-          data.overallRate < 50 ? '#f43f5e' :
-          data.overallRate < 70 ? '#a855f7' :
-          data.overallRate < 90 ? '#10b981' : '#3b82f6';
-
-        rateTextWrap.appendChild(rateLabel);
-        rateTextWrap.appendChild(rateValue);
-        rateBox.appendChild(rateTextWrap);
-        rateBox.appendChild(rateCircle);
-
-        header.appendChild(headerLeft);
-        header.appendChild(rateBox);
-
-        const body = document.createElement('div');
-        body.style.height = '504px';
-        body.style.padding = '28px 32px';
-        body.style.boxSizing = 'border-box';
-        body.style.display = 'flex';
-        body.style.gap = '32px';
-        body.style.alignItems = 'flex-start';
-
-        const leftCol = document.createElement('div');
-        leftCol.style.width = '31%';
-
-        const leftTitleRow = document.createElement('div');
-        leftTitleRow.style.height = '24px';
-        leftTitleRow.style.display = 'flex';
-        leftTitleRow.style.alignItems = 'center';
-        leftTitleRow.style.gap = '8px';
-        leftTitleRow.style.marginBottom = '12px';
-        leftTitleRow.innerHTML = `<span style="display:inline-flex;align-items:center;justify-content:center;color:#111827;">${document.querySelector('svg') ? '' : ''}</span><div style="font-size:15px;font-weight:900;color:#1f2937;line-height:1;">최근 과제 수행 추이</div>`;
-
-        const trendBox = document.createElement('div');
-        trendBox.style.background = '#ffffff';
-        trendBox.style.border = '1px solid #e2e8f0';
-        trendBox.style.borderRadius = '24px';
-        trendBox.style.padding = '22px 24px';
-        trendBox.style.boxShadow = '0 1px 2px rgba(15,23,42,0.04)';
-        trendBox.style.marginBottom = '26px';
-
-        const sessionRates = data.sessionRates.slice(-4);
-        sessionRates.forEach((s) => {
-          const row = document.createElement('div');
-          row.style.display = 'flex';
-          row.style.alignItems = 'center';
-          row.style.marginBottom = '24px';
-
-          const label = document.createElement('div');
-          label.textContent = s.session;
-          label.style.width = '60px';
-          label.style.fontSize = '12px';
-          label.style.fontWeight = '700';
-          label.style.color = '#64748b';
-
-          const barWrap = document.createElement('div');
-          barWrap.style.flex = '1';
-          barWrap.style.height = '12px';
-          barWrap.style.background = '#e2e8f0';
-          barWrap.style.borderRadius = '9999px';
-          barWrap.style.overflow = 'hidden';
-          barWrap.style.margin = '0 16px';
-
-          const cIdx = allSessions.indexOf(s.session);
-          const barColor = cIdx !== -1 ? colorPalette[cIdx % colorPalette.length] : '#3b82f6';
-
-          const bar = document.createElement('div');
-          bar.style.width = `${s.rate}%`;
-          bar.style.height = '100%';
-          bar.style.background = barColor;
-
-          const rate = document.createElement('div');
-          rate.textContent = `${s.rate}%`;
-          rate.style.width = '52px';
-          rate.style.textAlign = 'right';
-          rate.style.fontSize = '12px';
-          rate.style.fontWeight = '900';
-          rate.style.color = '#1f2937';
-
-          barWrap.appendChild(bar);
-          row.appendChild(label);
-          row.appendChild(barWrap);
-          row.appendChild(rate);
-          trendBox.appendChild(row);
-        });
-        if (trendBox.lastChild) trendBox.lastChild.style.marginBottom = '0';
-
-        const commentWrap = document.createElement('div');
-        commentWrap.style.position = 'relative';
-        commentWrap.style.background = 'rgba(238,242,255,0.65)';
-        commentWrap.style.border = '1px solid #c7d2fe';
-        commentWrap.style.borderRadius = '24px';
-        commentWrap.style.padding = '34px 24px 24px 24px';
-
-        const commentBadge = document.createElement('div');
-        commentBadge.textContent = "Teacher's Comment";
-        commentBadge.style.position = 'absolute';
-        commentBadge.style.left = '24px';
-        commentBadge.style.top = '-16px';
-        commentBadge.style.background = '#ffffff';
-        commentBadge.style.border = '1px solid #c7d2fe';
-        commentBadge.style.borderRadius = '9999px';
-        commentBadge.style.padding = '10px 18px';
-        commentBadge.style.fontSize = '12px';
-        commentBadge.style.fontWeight = '900';
-        commentBadge.style.color = '#4f46e5';
-        commentBadge.style.lineHeight = '1';
-
-        const commentText = document.createElement('div');
-        commentText.textContent = data.teacherComment || "열심히 하고 있습니다. 오답 보완에 좀 더 집중합시다!";
-        commentText.style.fontSize = '12px';
-        commentText.style.fontWeight = '700';
-        commentText.style.color = '#334155';
-        commentText.style.lineHeight = '1.7';
-        commentText.style.whiteSpace = 'pre-wrap';
-
-        commentWrap.appendChild(commentBadge);
-        commentWrap.appendChild(commentText);
-
-        leftCol.appendChild(leftTitleRow);
-        leftCol.appendChild(trendBox);
-        leftCol.appendChild(commentWrap);
-
-        const rightCol = document.createElement('div');
-        rightCol.style.width = '69%';
-
-        const rightTop = document.createElement('div');
-        rightTop.style.height = '24px';
-        rightTop.style.display = 'flex';
-        rightTop.style.justifyContent = 'space-between';
-        rightTop.style.alignItems = 'center';
-        rightTop.style.marginBottom = '12px';
-
-        const rightTitle = document.createElement('div');
-        rightTitle.textContent = '단원별 누적 학습 현황';
-        rightTitle.style.fontSize = '15px';
-        rightTitle.style.fontWeight = '900';
-        rightTitle.style.color = '#1f2937';
-        rightTitle.style.lineHeight = '1';
-
-        const legend = document.createElement('div');
-        legend.style.display = 'flex';
-        legend.style.gap = '8px';
-
-        allSessions.forEach((sess, idx) => {
-          const item = document.createElement('div');
-          item.style.display = 'flex';
-          item.style.alignItems = 'center';
-          item.style.gap = '6px';
-          item.style.padding = '6px 10px';
-          item.style.background = '#f1f5f9';
-          item.style.borderRadius = '8px';
-          item.style.fontSize = '10px';
-          item.style.fontWeight = '700';
-          item.style.color = '#64748b';
-
-          const dot = document.createElement('div');
-          dot.style.width = '7px';
-          dot.style.height = '7px';
-          dot.style.borderRadius = '9999px';
-          dot.style.background = colorPalette[idx % colorPalette.length];
-
-          const txt = document.createElement('div');
-          txt.textContent = sess;
-
-          item.appendChild(dot);
-          item.appendChild(txt);
-          legend.appendChild(item);
-        });
-
-        rightTop.appendChild(rightTitle);
-        rightTop.appendChild(legend);
-
-        const booksWrap = document.createElement('div');
-        booksWrap.style.display = 'flex';
-        booksWrap.style.gap = '16px';
-        booksWrap.style.alignItems = 'flex-start';
-
-        data.books.forEach((book) => {
-          const bookCard = document.createElement('div');
-          bookCard.style.flex = '1';
-          bookCard.style.background = '#ffffff';
-          bookCard.style.border = '1px solid #e2e8f0';
-          bookCard.style.borderRadius = '24px';
-          bookCard.style.overflow = 'hidden';
-          bookCard.style.boxShadow = '0 1px 2px rgba(15,23,42,0.04)';
-
-          const bookHead = document.createElement('div');
-          bookHead.textContent = book.name;
-          bookHead.style.background = '#f8fafc';
-          bookHead.style.padding = '14px 16px';
-          bookHead.style.borderBottom = '1px solid #f1f5f9';
-          bookHead.style.fontSize = '13px';
-          bookHead.style.fontWeight = '900';
-          bookHead.style.color = '#1f2937';
-          bookHead.style.lineHeight = '1.2';
-
-          const bookBody = document.createElement('div');
-          bookBody.style.padding = '16px';
-          bookBody.style.boxSizing = 'border-box';
-
-          book.units.forEach((unit, idx) => {
-            const done = unit.sessions.reduce((a, b) => a + b.pagesDone, 0);
-            const rate = unit.totalPages > 0 ? Math.round((done / unit.totalPages) * 100) : 0;
-
-            const unitWrap = document.createElement('div');
-            unitWrap.style.marginBottom = idx === book.units.length - 1 ? '0' : '24px';
-
-            const unitTop = document.createElement('div');
-            unitTop.style.display = 'flex';
-            unitTop.style.justifyContent = 'space-between';
-            unitTop.style.alignItems = 'flex-end';
-            unitTop.style.gap = '8px';
-            unitTop.style.marginBottom = '7px';
-
-            const unitName = document.createElement('div');
-            unitName.style.fontSize = '10px';
-            unitName.style.fontWeight = '700';
-            unitName.style.color = '#475569';
-            unitName.style.lineHeight = '1.3';
-            unitName.textContent = unit.startPage && unit.endPage
-              ? `${unit.name} (${unit.startPage}p~${unit.endPage}p, 총 ${unit.totalPages}p)`
-              : `${unit.name} (총 ${unit.totalPages}p)`;
-
-            const unitRate = document.createElement('div');
-            unitRate.textContent = `${rate}%`;
-            unitRate.style.flexShrink = '0';
-            unitRate.style.marginLeft = '8px';
-            unitRate.style.fontSize = '10px';
-            unitRate.style.fontWeight = '900';
-            unitRate.style.lineHeight = '1';
-            unitRate.style.color = rate >= 100 ? '#2563eb' : '#94a3b8';
-
-            const unitBar = document.createElement('div');
-            unitBar.style.width = '100%';
-            unitBar.style.height = '18px';
-            unitBar.style.background = '#e2e8f0';
-            unitBar.style.borderRadius = '9999px';
-            unitBar.style.overflow = 'hidden';
-            unitBar.style.display = 'flex';
-
-            unit.sessions.forEach((s, si) => {
-              const seg = document.createElement('div');
-              seg.style.height = '100%';
-              seg.style.width = `${(s.pagesDone / unit.totalPages) * 100}%`;
-              const sessionIdx = allSessions.indexOf(s.name);
-              seg.style.background = sessionIdx !== -1 ? colorPalette[sessionIdx % colorPalette.length] : '#3b82f6';
-              if (si < unit.sessions.length - 1) {
-                seg.style.borderRight = '1px solid rgba(255,255,255,0.2)';
-              }
-              unitBar.appendChild(seg);
-            });
-
-            unitTop.appendChild(unitName);
-            unitTop.appendChild(unitRate);
-            unitWrap.appendChild(unitTop);
-            unitWrap.appendChild(unitBar);
-
-            if (unit.uncompleted && String(unit.uncompleted).trim() !== "") {
-              const alert = document.createElement('div');
-              alert.textContent = String(unit.uncompleted).includes('결석')
-                ? '결석'
-                : `미완료: ${unit.uncompleted}p`;
-              alert.style.marginTop = '7px';
-              alert.style.fontSize = '8px';
-              alert.style.fontWeight = '900';
-              alert.style.color = '#f43f5e';
-              alert.style.lineHeight = '1.2';
-              unitWrap.appendChild(alert);
-            }
-
-            bookBody.appendChild(unitWrap);
-          });
-
-          bookCard.appendChild(bookHead);
-          bookCard.appendChild(bookBody);
-          booksWrap.appendChild(bookCard);
-        });
-
-        rightCol.appendChild(rightTop);
-        rightCol.appendChild(booksWrap);
-
-        body.appendChild(leftCol);
-        body.appendChild(rightCol);
-
-        const footer = document.createElement('div');
-        footer.style.height = '58px';
-        footer.style.background = '#f8fafc';
-        footer.style.borderTop = '1px solid #f1f5f9';
-        footer.style.display = 'flex';
-        footer.style.alignItems = 'center';
-        footer.style.justifyContent = 'center';
-
-        const footerText = document.createElement('div');
-        footerText.textContent = 'MOONSAN YEOLLIN MATH PREMIUM SMART REPORT SYSTEM';
-        footerText.style.fontSize = '9px';
-        footerText.style.fontWeight = '900';
-        footerText.style.color = '#cbd5e1';
-        footerText.style.letterSpacing = '0.42em';
-        footerText.style.lineHeight = '1';
-
-        footer.appendChild(footerText);
-
-        card.appendChild(header);
-        card.appendChild(body);
-        card.appendChild(footer);
-        outer.appendChild(card);
-
-        return { outer, card };
+      const roundRect = (ctx, x, y, w, h, r, fill = true, stroke = false) => {
+        const radius = Math.min(r, w / 2, h / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + w - radius, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+        ctx.lineTo(x + w, y + h - radius);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+        ctx.lineTo(x + radius, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+        if (fill) ctx.fill();
+        if (stroke) ctx.stroke();
       };
+
+      const drawText = (ctx, text, x, y, options = {}) => {
+        const {
+          size = 16,
+          weight = 700,
+          color = '#111827',
+          align = 'left',
+          baseline = 'alphabetic',
+          fontFamily = 'Pretendard',
+          maxWidth = undefined
+        } = options;
+
+        ctx.fillStyle = color;
+        ctx.textAlign = align;
+        ctx.textBaseline = baseline;
+        ctx.font = `${weight} ${size}px ${fontFamily}, -apple-system, BlinkMacSystemFont, system-ui, sans-serif`;
+        if (maxWidth) ctx.fillText(text, x, y, maxWidth);
+        else ctx.fillText(text, x, y);
+      };
+
+      const fitText = (ctx, text, maxWidth, startSize, weight = 900) => {
+        let size = startSize;
+        while (size > 10) {
+          ctx.font = `${weight} ${size}px Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif`;
+          if (ctx.measureText(text).width <= maxWidth) return size;
+          size -= 1;
+        }
+        return size;
+      };
+
+      const loadImage = (src) => new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
 
       const handleDownloadImage = async () => {
         try {
           await document.fonts.ready;
 
-          const { outer, card } = buildCaptureDOM(data, allSessions);
-          document.body.appendChild(outer);
+          const scale = 2;
+          const W = 1050;
+          const H = 700;
 
-          await new Promise(resolve => setTimeout(resolve, 250));
+          const canvas = document.createElement('canvas');
+          canvas.width = W * scale;
+          canvas.height = H * scale;
+          canvas.style.width = W + 'px';
+          canvas.style.height = H + 'px';
 
-          const canvas = await html2canvas(card, {
-            scale: 2,
-            backgroundColor: '#ffffff',
-            useCORS: true,
-            logging: false,
-            width: 1050,
-            height: 700,
-            scrollX: 0,
-            scrollY: 0,
-            windowWidth: 1050,
-            windowHeight: 700
+          const ctx = canvas.getContext('2d');
+          ctx.scale(scale, scale);
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+
+          ctx.fillStyle = '#f1f5f9';
+          ctx.fillRect(0, 0, W, H);
+
+          ctx.shadowColor = 'rgba(15,23,42,0.10)';
+          ctx.shadowBlur = 30;
+          ctx.shadowOffsetY = 8;
+          ctx.fillStyle = '#ffffff';
+          roundRect(ctx, 0, 0, W, H, 32, true, false);
+          ctx.shadowColor = 'transparent';
+
+          ctx.save();
+          roundRect(ctx, 0, 0, W, H, 32, false, false);
+          ctx.clip();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, W, H);
+
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(0, 0, W, 138);
+
+          try {
+            const logo = await loadImage(LOGO_FILENAME);
+            ctx.save();
+            ctx.globalAlpha = 0.85;
+            ctx.drawImage(logo, 34, 34, 128, 40);
+            ctx.restore();
+          } catch (e) {}
+
+          ctx.strokeStyle = '#334155';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(168, 44);
+          ctx.lineTo(168, 76);
+          ctx.stroke();
+
+          const nameFont = fitText(ctx, data.name, 220, 44, 900);
+          drawText(ctx, data.name, 194, 69, { size: nameFont, weight: 900, color: '#ffffff', baseline: 'alphabetic' });
+
+          ctx.font = `500 24px Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif`;
+          const nameWidth = ctx.measureText(data.name).width;
+          drawText(ctx, '학생', 194 + nameWidth + 10, 68, { size: 24, weight: 500, color: '#94a3b8', baseline: 'alphabetic' });
+
+          drawText(ctx, `${data.className} | 교재점검 누적리포트`, 194, 100, {
+            size: 13,
+            weight: 700,
+            color: '#94a3b8',
+            baseline: 'alphabetic'
           });
+
+          ctx.fillStyle = 'rgba(30,41,59,0.72)';
+          ctx.strokeStyle = '#334155';
+          ctx.lineWidth = 1;
+          roundRect(ctx, 835, 24, 180, 72, 18, true, true);
+
+          drawText(ctx, 'TOTAL RATE', 872, 49, {
+            size: 12,
+            weight: 900,
+            color: '#ffffff',
+            baseline: 'alphabetic'
+          });
+
+          const rateTextColor =
+            data.overallRate < 50 ? '#fecdd3' :
+            data.overallRate < 70 ? '#e9d5ff' :
+            data.overallRate < 90 ? '#a7f3d0' : '#bfdbfe';
+
+          drawText(ctx, `${data.overallRate}%`, 872, 83, {
+            size: 28,
+            weight: 900,
+            color: rateTextColor,
+            baseline: 'alphabetic'
+          });
+
+          const rateCircleColor =
+            data.overallRate < 50 ? '#f43f5e' :
+            data.overallRate < 70 ? '#a855f7' :
+            data.overallRate < 90 ? '#10b981' : '#3b82f6';
+
+          ctx.fillStyle = rateCircleColor;
+          ctx.beginPath();
+          ctx.arc(964, 60, 27, 0, Math.PI * 2);
+          ctx.fill();
+          drawText(ctx, '✓', 964, 69, { size: 26, weight: 900, color: '#ffffff', align: 'center', baseline: 'alphabetic' });
+
+          drawText(ctx, '최근 과제 수행 추이', 40, 190, {
+            size: 15,
+            weight: 900,
+            color: '#1f2937',
+            baseline: 'alphabetic'
+          });
+
+          ctx.fillStyle = '#ffffff';
+          ctx.strokeStyle = '#e2e8f0';
+          roundRect(ctx, 32, 208, 308, 104, 24, true, true);
+
+          const sessionRates = data.sessionRates.slice(-4);
+          sessionRates.forEach((s, i) => {
+            const y = 246 + i * 40;
+            const cIdx = allSessions.indexOf(s.session);
+            const barColor = cIdx !== -1 ? colorPalette[cIdx % colorPalette.length] : '#3b82f6';
+
+            drawText(ctx, s.session, 56, y, {
+              size: 12,
+              weight: 700,
+              color: '#64748b',
+              baseline: 'middle'
+            });
+
+            ctx.fillStyle = '#e2e8f0';
+            roundRect(ctx, 96, y - 8, 168, 12, 999, true, false);
+
+            ctx.fillStyle = barColor;
+            roundRect(ctx, 96, y - 8, 168 * (s.rate / 100), 12, 999, true, false);
+
+            drawText(ctx, `${s.rate}%`, 314, y, {
+              size: 12,
+              weight: 900,
+              color: '#1f2937',
+              align: 'right',
+              baseline: 'middle'
+            });
+          });
+
+          ctx.fillStyle = 'rgba(238,242,255,0.65)';
+          ctx.strokeStyle = '#c7d2fe';
+          roundRect(ctx, 32, 338, 308, 92, 24, true, true);
+
+          ctx.fillStyle = '#ffffff';
+          ctx.strokeStyle = '#c7d2fe';
+          roundRect(ctx, 56, 322, 170, 32, 999, true, true);
+
+          drawText(ctx, "Teacher's Comment", 141, 343, {
+            size: 12,
+            weight: 900,
+            color: '#4f46e5',
+            align: 'center',
+            baseline: 'middle'
+          });
+
+          drawText(ctx, data.teacherComment || "열심히 하고 있습니다. 오답 보완에 좀 더 집중합시다!", 56, 388, {
+            size: 12,
+            weight: 700,
+            color: '#334155',
+            baseline: 'alphabetic'
+          });
+
+          drawText(ctx, '단원별 누적 학습 현황', 380, 190, {
+            size: 15,
+            weight: 900,
+            color: '#1f2937',
+            baseline: 'alphabetic'
+          });
+
+          let legendX = 892;
+          allSessions.slice().reverse().forEach((sess, idxRev) => {
+            const idx = allSessions.length - 1 - idxRev;
+            const w = 58;
+            ctx.fillStyle = '#f1f5f9';
+            roundRect(ctx, legendX, 166, w, 26, 8, true, false);
+            ctx.fillStyle = colorPalette[idx % colorPalette.length];
+            ctx.beginPath();
+            ctx.arc(legendX + 12, 179, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+            drawText(ctx, sess, legendX + 22, 183, {
+              size: 10,
+              weight: 700,
+              color: '#64748b',
+              baseline: 'middle'
+            });
+            legendX -= (w + 8);
+          });
+
+          const bookX = [392, 708];
+          data.books.forEach((book, bIdx) => {
+            const bx = bookX[bIdx] || 392;
+            const bw = data.books.length > 1 ? 310 : 626;
+
+            ctx.fillStyle = '#ffffff';
+            ctx.strokeStyle = '#e2e8f0';
+            roundRect(ctx, bx, 208, bw, 430, 24, true, true);
+
+            ctx.fillStyle = '#f8fafc';
+            ctx.fillRect(bx + 1, 209, bw - 2, 42);
+            ctx.strokeStyle = '#f1f5f9';
+            ctx.beginPath();
+            ctx.moveTo(bx, 251);
+            ctx.lineTo(bx + bw, 251);
+            ctx.stroke();
+
+            drawText(ctx, book.name, bx + 16, 237, {
+              size: 13,
+              weight: 900,
+              color: '#1f2937',
+              baseline: 'alphabetic'
+            });
+
+            let unitY = 286;
+            book.units.forEach((unit) => {
+              const done = unit.sessions.reduce((a, b) => a + b.pagesDone, 0);
+              const rate = unit.totalPages > 0 ? Math.round((done / unit.totalPages) * 100) : 0;
+
+              const titleText = unit.startPage && unit.endPage
+                ? `${unit.name} (${unit.startPage}p~${unit.endPage}p, 총 ${unit.totalPages}p)`
+                : `${unit.name} (총 ${unit.totalPages}p)`;
+
+              drawText(ctx, titleText, bx + 16, unitY, {
+                size: 10,
+                weight: 700,
+                color: '#475569',
+                baseline: 'alphabetic',
+                maxWidth: bw - 90
+              });
+
+              drawText(ctx, `${rate}%`, bx + bw - 16, unitY, {
+                size: 10,
+                weight: 900,
+                color: rate >= 100 ? '#2563eb' : '#94a3b8',
+                align: 'right',
+                baseline: 'alphabetic'
+              });
+
+              ctx.fillStyle = '#e2e8f0';
+              roundRect(ctx, bx + 16, unitY + 7, bw - 32, 18, 999, true, false);
+
+              let cursorX = bx + 16;
+              unit.sessions.forEach((s, si) => {
+                const segW = (bw - 32) * (s.pagesDone / unit.totalPages);
+                const sessionIdx = allSessions.indexOf(s.name);
+                ctx.fillStyle = sessionIdx !== -1 ? colorPalette[sessionIdx % colorPalette.length] : '#3b82f6';
+                roundRect(ctx, cursorX, unitY + 7, segW, 18, 999, true, false);
+                cursorX += segW;
+              });
+
+              if (unit.uncompleted && String(unit.uncompleted).trim() !== "") {
+                const alertText = String(unit.uncompleted).includes('결석')
+                  ? '결석'
+                  : `미완료: ${unit.uncompleted}p`;
+
+                drawText(ctx, alertText, bx + 16, unitY + 48, {
+                  size: 8,
+                  weight: 900,
+                  color: '#f43f5e',
+                  baseline: 'alphabetic'
+                });
+              }
+
+              unitY += 78;
+            });
+          });
+
+          ctx.fillStyle = '#f8fafc';
+          ctx.fillRect(0, 642, W, 58);
+          ctx.strokeStyle = '#f1f5f9';
+          ctx.beginPath();
+          ctx.moveTo(0, 642);
+          ctx.lineTo(W, 642);
+          ctx.stroke();
+
+          drawText(ctx, 'MOONSAN YEOLLIN MATH PREMIUM SMART REPORT SYSTEM', W / 2, 676, {
+            size: 9,
+            weight: 900,
+            color: '#cbd5e1',
+            align: 'center',
+            baseline: 'middle'
+          });
+
+          ctx.restore();
 
           const link = document.createElement('a');
           link.download = `[열린 교재점검 리포트]_${data.name}.png`;
           link.href = canvas.toDataURL('image/png', 1.0);
           link.click();
-
-          document.body.removeChild(outer);
         } catch (err) {
           alert("이미지 저장 중 오류가 발생했습니다: " + err.message);
         }
