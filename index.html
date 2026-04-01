@@ -53,8 +53,6 @@
         page-break-inside: avoid;
       }
     }
-
-    .scrollbar-hide::-webkit-scrollbar { display: none; }
   </style>
 </head>
 <body>
@@ -151,353 +149,212 @@
         window.location.href = `sms:${data.phoneParent}?body=${encodeURIComponent(message)}`;
       };
 
-      const roundRect = (ctx, x, y, w, h, r, fill = true, stroke = false) => {
-        const radius = Math.min(r, w / 2, h / 2);
-        ctx.beginPath();
-        ctx.moveTo(x + radius, y);
-        ctx.lineTo(x + w - radius, y);
-        ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
-        ctx.lineTo(x + w, y + h - radius);
-        ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
-        ctx.lineTo(x + radius, y + h);
-        ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
-        ctx.lineTo(x, y + radius);
-        ctx.quadraticCurveTo(x, y, x + radius, y);
-        ctx.closePath();
-        if (fill) ctx.fill();
-        if (stroke) ctx.stroke();
+      const escapeXml = (str = "") =>
+        String(str)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&apos;");
+
+      const fitNameSize = (name) => {
+        const len = String(name || "").length;
+        if (len <= 3) return 34;
+        if (len === 4) return 30;
+        if (len === 5) return 27;
+        return 24;
       };
 
-      const drawText = (ctx, text, x, y, options = {}) => {
-        const {
-          size = 16,
-          weight = 700,
-          color = '#111827',
-          align = 'left',
-          baseline = 'alphabetic',
-          fontFamily = 'Pretendard',
-          maxWidth = undefined
-        } = options;
+      const makeSvg = async () => {
+        const W = 1050;
+        const H = 700;
+        const nameSize = fitNameSize(data.name);
 
-        ctx.fillStyle = color;
-        ctx.textAlign = align;
-        ctx.textBaseline = baseline;
-        ctx.font = `${weight} ${size}px ${fontFamily}, -apple-system, BlinkMacSystemFont, system-ui, sans-serif`;
-        if (maxWidth) ctx.fillText(text, x, y, maxWidth);
-        else ctx.fillText(text, x, y);
+        let logoDataUrl = "";
+        try {
+          const res = await fetch(LOGO_FILENAME);
+          const blob = await res.blob();
+          logoDataUrl = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
+          });
+        } catch (e) {}
+
+        const legend = allSessions.map((sess, idx) => {
+          const x = 820 + idx * 62;
+          return `
+            <g>
+              <rect x="${x}" y="166" width="56" height="26" rx="8" fill="#f1f5f9"/>
+              <circle cx="${x + 12}" cy="179" r="3.5" fill="${colorPalette[idx % colorPalette.length]}"/>
+              <text x="${x + 22}" y="184" font-size="10" font-weight="700" fill="#64748b">${escapeXml(sess)}</text>
+            </g>
+          `;
+        }).join("");
+
+        const sessionRates = data.sessionRates.slice(-4).map((s, i) => {
+          const y = 246 + i * 40;
+          const cIdx = allSessions.indexOf(s.session);
+          const barColor = cIdx !== -1 ? colorPalette[cIdx % colorPalette.length] : '#3b82f6';
+          const barW = 168 * (s.rate / 100);
+
+          return `
+            <g>
+              <text x="56" y="${y + 4}" font-size="12" font-weight="700" fill="#64748b">${escapeXml(s.session)}</text>
+              <rect x="96" y="${y - 8}" width="168" height="12" rx="999" fill="#e2e8f0"/>
+              <rect x="96" y="${y - 8}" width="${barW}" height="12" rx="999" fill="${barColor}"/>
+              <text x="314" y="${y + 4}" text-anchor="end" font-size="12" font-weight="900" fill="#1f2937">${s.rate}%</text>
+            </g>
+          `;
+        }).join("");
+
+        const rateTextColor =
+          data.overallRate < 50 ? '#fecdd3' :
+          data.overallRate < 70 ? '#e9d5ff' :
+          data.overallRate < 90 ? '#a7f3d0' : '#bfdbfe';
+
+        const rateCircleColor =
+          data.overallRate < 50 ? '#f43f5e' :
+          data.overallRate < 70 ? '#a855f7' :
+          data.overallRate < 90 ? '#10b981' : '#3b82f6';
+
+        const bookXs = data.books.length > 1 ? [392, 708] : [392];
+        const bookW = data.books.length > 1 ? 310 : 626;
+
+        const booksSvg = data.books.map((book, bIdx) => {
+          const bx = bookXs[bIdx] || 392;
+          let unitY = 286;
+
+          const unitsSvg = book.units.map((unit) => {
+            const done = unit.sessions.reduce((a, b) => a + b.pagesDone, 0);
+            const rate = unit.totalPages > 0 ? Math.round((done / unit.totalPages) * 100) : 0;
+            const titleText = unit.startPage && unit.endPage
+              ? `${unit.name} (${unit.startPage}p~${unit.endPage}p, 총 ${unit.totalPages}p)`
+              : `${unit.name} (총 ${unit.totalPages}p)`;
+
+            let segX = bx + 16;
+            const segs = unit.sessions.map((s) => {
+              const segW = (bookW - 32) * (s.pagesDone / unit.totalPages);
+              const sessionIdx = allSessions.indexOf(s.name);
+              const fill = sessionIdx !== -1 ? colorPalette[sessionIdx % colorPalette.length] : '#3b82f6';
+              const part = `<rect x="${segX}" y="${unitY + 7}" width="${segW}" height="18" rx="999" fill="${fill}"/>`;
+              segX += segW;
+              return part;
+            }).join("");
+
+            const alertText = unit.uncompleted && String(unit.uncompleted).trim() !== ""
+              ? (String(unit.uncompleted).includes('결석') ? '결석' : `미완료: ${unit.uncompleted}p`)
+              : "";
+
+            const svg = `
+              <g>
+                <text x="${bx + 16}" y="${unitY}" font-size="10" font-weight="700" fill="#475569">${escapeXml(titleText)}</text>
+                <text x="${bx + bookW - 16}" y="${unitY}" text-anchor="end" font-size="10" font-weight="900" fill="${rate >= 100 ? '#2563eb' : '#94a3b8'}">${rate}%</text>
+                <rect x="${bx + 16}" y="${unitY + 7}" width="${bookW - 32}" height="18" rx="999" fill="#e2e8f0"/>
+                ${segs}
+                ${alertText ? `<text x="${bx + 16}" y="${unitY + 48}" font-size="8" font-weight="900" fill="#f43f5e">${escapeXml(alertText)}</text>` : ''}
+              </g>
+            `;
+            unitY += 78;
+            return svg;
+          }).join("");
+
+          return `
+            <g>
+              <rect x="${bx}" y="208" width="${bookW}" height="430" rx="24" fill="#ffffff" stroke="#e2e8f0"/>
+              <rect x="${bx + 1}" y="209" width="${bookW - 2}" height="42" fill="#f8fafc"/>
+              <line x1="${bx}" y1="251" x2="${bx + bookW}" y2="251" stroke="#f1f5f9"/>
+              <text x="${bx + 16}" y="237" font-size="13" font-weight="900" fill="#1f2937">${escapeXml(book.name)}</text>
+              ${unitsSvg}
+            </g>
+          `;
+        }).join("");
+
+        return `
+<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+  <defs>
+    <style>
+      text {
+        font-family: Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+        dominant-baseline: alphabetic;
+      }
+    </style>
+    <clipPath id="clipCard">
+      <rect x="0" y="0" width="${W}" height="${H}" rx="32" ry="32"/>
+    </clipPath>
+  </defs>
+
+  <rect width="${W}" height="${H}" fill="#f1f5f9"/>
+  <rect x="0" y="0" width="${W}" height="${H}" rx="32" fill="#ffffff"/>
+  <g clip-path="url(#clipCard)">
+    <rect x="0" y="0" width="${W}" height="138" fill="#0f172a"/>
+
+    ${logoDataUrl ? `<image href="${logoDataUrl}" x="34" y="34" width="128" height="40" opacity="0.85"/>` : ''}
+
+    <line x1="168" y1="44" x2="168" y2="76" stroke="#334155"/>
+
+    <text x="194" y="69" font-size="${nameSize}" font-weight="900" fill="#ffffff">${escapeXml(data.name)}</text>
+    <text x="${194 + (String(data.name).length * (nameSize * 0.64)) + 12}" y="69" font-size="24" font-weight="500" fill="#94a3b8">학생</text>
+    <text x="194" y="100" font-size="13" font-weight="700" fill="#94a3b8">${escapeXml(`${data.className} | 교재점검 누적리포트`)}</text>
+
+    <rect x="835" y="24" width="180" height="72" rx="18" fill="rgba(30,41,59,0.72)" stroke="#334155"/>
+    <text x="872" y="49" font-size="12" font-weight="900" fill="#ffffff">TOTAL RATE</text>
+    <text x="872" y="83" font-size="28" font-weight="900" fill="${rateTextColor}">${data.overallRate}%</text>
+    <circle cx="964" cy="60" r="27" fill="${rateCircleColor}"/>
+    <text x="964" y="69" font-size="26" font-weight="900" fill="#ffffff" text-anchor="middle">✓</text>
+
+    <text x="40" y="190" font-size="15" font-weight="900" fill="#1f2937">최근 과제 수행 추이</text>
+    <rect x="32" y="208" width="308" height="104" rx="24" fill="#ffffff" stroke="#e2e8f0"/>
+    ${sessionRates}
+
+    <rect x="32" y="338" width="308" height="92" rx="24" fill="rgba(238,242,255,0.65)" stroke="#c7d2fe"/>
+    <rect x="56" y="322" width="170" height="32" rx="16" fill="#ffffff" stroke="#c7d2fe"/>
+    <text x="141" y="343" font-size="12" font-weight="900" fill="#4f46e5" text-anchor="middle">Teacher&apos;s Comment</text>
+    <text x="56" y="388" font-size="12" font-weight="700" fill="#334155">${escapeXml(data.teacherComment || "열심히 하고 있습니다. 오답 보완에 좀 더 집중합시다!")}</text>
+
+    <text x="380" y="190" font-size="15" font-weight="900" fill="#1f2937">단원별 누적 학습 현황</text>
+    ${legend}
+    ${booksSvg}
+
+    <rect x="0" y="642" width="${W}" height="58" fill="#f8fafc"/>
+    <line x1="0" y1="642" x2="${W}" y2="642" stroke="#f1f5f9"/>
+    <text x="${W / 2}" y="676" font-size="9" font-weight="900" fill="#cbd5e1" text-anchor="middle">MOONSAN YEOLLIN MATH PREMIUM SMART REPORT SYSTEM</text>
+  </g>
+</svg>
+        `.trim();
       };
-
-      const fitText = (ctx, text, maxWidth, startSize, weight = 900) => {
-        let size = startSize;
-        while (size > 10) {
-          ctx.font = `${weight} ${size}px Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif`;
-          if (ctx.measureText(text).width <= maxWidth) return size;
-          size -= 1;
-        }
-        return size;
-      };
-
-      const loadImage = (src) => new Promise((resolve, reject) => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => resolve(img);
-        img.onerror = reject;
-        img.src = src;
-      });
 
       const handleDownloadImage = async () => {
         try {
-          await document.fonts.ready;
+          const svgText = await makeSvg();
+          const svgBlob = new Blob([svgText], { type: "image/svg+xml;charset=utf-8" });
+          const svgUrl = URL.createObjectURL(svgBlob);
 
-          const scale = 2;
-          const W = 1050;
-          const H = 700;
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 2100;
+            canvas.height = 1400;
+            const ctx = canvas.getContext('2d');
 
-          const canvas = document.createElement('canvas');
-          canvas.width = W * scale;
-          canvas.height = H * scale;
-          canvas.style.width = W + 'px';
-          canvas.style.height = H + 'px';
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-          const ctx = canvas.getContext('2d');
-          ctx.scale(scale, scale);
-          ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = 'high';
+            URL.revokeObjectURL(svgUrl);
 
-          ctx.fillStyle = '#f1f5f9';
-          ctx.fillRect(0, 0, W, H);
-
-          ctx.shadowColor = 'rgba(15,23,42,0.10)';
-          ctx.shadowBlur = 30;
-          ctx.shadowOffsetY = 8;
-          ctx.fillStyle = '#ffffff';
-          roundRect(ctx, 0, 0, W, H, 32, true, false);
-          ctx.shadowColor = 'transparent';
-
-          ctx.save();
-          roundRect(ctx, 0, 0, W, H, 32, false, false);
-          ctx.clip();
-
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, W, H);
-
-          ctx.fillStyle = '#0f172a';
-          ctx.fillRect(0, 0, W, 138);
-
-          try {
-            const logo = await loadImage(LOGO_FILENAME);
-            ctx.save();
-            ctx.globalAlpha = 0.85;
-            ctx.drawImage(logo, 34, 34, 128, 40);
-            ctx.restore();
-          } catch (e) {}
-
-          ctx.strokeStyle = '#334155';
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(168, 44);
-          ctx.lineTo(168, 76);
-          ctx.stroke();
-
-          const nameFont = fitText(ctx, data.name, 220, 44, 900);
-          drawText(ctx, data.name, 194, 69, { size: nameFont, weight: 900, color: '#ffffff', baseline: 'alphabetic' });
-
-          ctx.font = `500 24px Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif`;
-          const nameWidth = ctx.measureText(data.name).width;
-          drawText(ctx, '학생', 194 + nameWidth + 10, 68, { size: 24, weight: 500, color: '#94a3b8', baseline: 'alphabetic' });
-
-          drawText(ctx, `${data.className} | 교재점검 누적리포트`, 194, 100, {
-            size: 13,
-            weight: 700,
-            color: '#94a3b8',
-            baseline: 'alphabetic'
-          });
-
-          ctx.fillStyle = 'rgba(30,41,59,0.72)';
-          ctx.strokeStyle = '#334155';
-          ctx.lineWidth = 1;
-          roundRect(ctx, 835, 24, 180, 72, 18, true, true);
-
-          drawText(ctx, 'TOTAL RATE', 872, 49, {
-            size: 12,
-            weight: 900,
-            color: '#ffffff',
-            baseline: 'alphabetic'
-          });
-
-          const rateTextColor =
-            data.overallRate < 50 ? '#fecdd3' :
-            data.overallRate < 70 ? '#e9d5ff' :
-            data.overallRate < 90 ? '#a7f3d0' : '#bfdbfe';
-
-          drawText(ctx, `${data.overallRate}%`, 872, 83, {
-            size: 28,
-            weight: 900,
-            color: rateTextColor,
-            baseline: 'alphabetic'
-          });
-
-          const rateCircleColor =
-            data.overallRate < 50 ? '#f43f5e' :
-            data.overallRate < 70 ? '#a855f7' :
-            data.overallRate < 90 ? '#10b981' : '#3b82f6';
-
-          ctx.fillStyle = rateCircleColor;
-          ctx.beginPath();
-          ctx.arc(964, 60, 27, 0, Math.PI * 2);
-          ctx.fill();
-          drawText(ctx, '✓', 964, 69, { size: 26, weight: 900, color: '#ffffff', align: 'center', baseline: 'alphabetic' });
-
-          drawText(ctx, '최근 과제 수행 추이', 40, 190, {
-            size: 15,
-            weight: 900,
-            color: '#1f2937',
-            baseline: 'alphabetic'
-          });
-
-          ctx.fillStyle = '#ffffff';
-          ctx.strokeStyle = '#e2e8f0';
-          roundRect(ctx, 32, 208, 308, 104, 24, true, true);
-
-          const sessionRates = data.sessionRates.slice(-4);
-          sessionRates.forEach((s, i) => {
-            const y = 246 + i * 40;
-            const cIdx = allSessions.indexOf(s.session);
-            const barColor = cIdx !== -1 ? colorPalette[cIdx % colorPalette.length] : '#3b82f6';
-
-            drawText(ctx, s.session, 56, y, {
-              size: 12,
-              weight: 700,
-              color: '#64748b',
-              baseline: 'middle'
-            });
-
-            ctx.fillStyle = '#e2e8f0';
-            roundRect(ctx, 96, y - 8, 168, 12, 999, true, false);
-
-            ctx.fillStyle = barColor;
-            roundRect(ctx, 96, y - 8, 168 * (s.rate / 100), 12, 999, true, false);
-
-            drawText(ctx, `${s.rate}%`, 314, y, {
-              size: 12,
-              weight: 900,
-              color: '#1f2937',
-              align: 'right',
-              baseline: 'middle'
-            });
-          });
-
-          ctx.fillStyle = 'rgba(238,242,255,0.65)';
-          ctx.strokeStyle = '#c7d2fe';
-          roundRect(ctx, 32, 338, 308, 92, 24, true, true);
-
-          ctx.fillStyle = '#ffffff';
-          ctx.strokeStyle = '#c7d2fe';
-          roundRect(ctx, 56, 322, 170, 32, 999, true, true);
-
-          drawText(ctx, "Teacher's Comment", 141, 343, {
-            size: 12,
-            weight: 900,
-            color: '#4f46e5',
-            align: 'center',
-            baseline: 'middle'
-          });
-
-          drawText(ctx, data.teacherComment || "열심히 하고 있습니다. 오답 보완에 좀 더 집중합시다!", 56, 388, {
-            size: 12,
-            weight: 700,
-            color: '#334155',
-            baseline: 'alphabetic'
-          });
-
-          drawText(ctx, '단원별 누적 학습 현황', 380, 190, {
-            size: 15,
-            weight: 900,
-            color: '#1f2937',
-            baseline: 'alphabetic'
-          });
-
-          let legendX = 892;
-          allSessions.slice().reverse().forEach((sess, idxRev) => {
-            const idx = allSessions.length - 1 - idxRev;
-            const w = 58;
-            ctx.fillStyle = '#f1f5f9';
-            roundRect(ctx, legendX, 166, w, 26, 8, true, false);
-            ctx.fillStyle = colorPalette[idx % colorPalette.length];
-            ctx.beginPath();
-            ctx.arc(legendX + 12, 179, 3.5, 0, Math.PI * 2);
-            ctx.fill();
-            drawText(ctx, sess, legendX + 22, 183, {
-              size: 10,
-              weight: 700,
-              color: '#64748b',
-              baseline: 'middle'
-            });
-            legendX -= (w + 8);
-          });
-
-          const bookX = [392, 708];
-          data.books.forEach((book, bIdx) => {
-            const bx = bookX[bIdx] || 392;
-            const bw = data.books.length > 1 ? 310 : 626;
-
-            ctx.fillStyle = '#ffffff';
-            ctx.strokeStyle = '#e2e8f0';
-            roundRect(ctx, bx, 208, bw, 430, 24, true, true);
-
-            ctx.fillStyle = '#f8fafc';
-            ctx.fillRect(bx + 1, 209, bw - 2, 42);
-            ctx.strokeStyle = '#f1f5f9';
-            ctx.beginPath();
-            ctx.moveTo(bx, 251);
-            ctx.lineTo(bx + bw, 251);
-            ctx.stroke();
-
-            drawText(ctx, book.name, bx + 16, 237, {
-              size: 13,
-              weight: 900,
-              color: '#1f2937',
-              baseline: 'alphabetic'
-            });
-
-            let unitY = 286;
-            book.units.forEach((unit) => {
-              const done = unit.sessions.reduce((a, b) => a + b.pagesDone, 0);
-              const rate = unit.totalPages > 0 ? Math.round((done / unit.totalPages) * 100) : 0;
-
-              const titleText = unit.startPage && unit.endPage
-                ? `${unit.name} (${unit.startPage}p~${unit.endPage}p, 총 ${unit.totalPages}p)`
-                : `${unit.name} (총 ${unit.totalPages}p)`;
-
-              drawText(ctx, titleText, bx + 16, unitY, {
-                size: 10,
-                weight: 700,
-                color: '#475569',
-                baseline: 'alphabetic',
-                maxWidth: bw - 90
-              });
-
-              drawText(ctx, `${rate}%`, bx + bw - 16, unitY, {
-                size: 10,
-                weight: 900,
-                color: rate >= 100 ? '#2563eb' : '#94a3b8',
-                align: 'right',
-                baseline: 'alphabetic'
-              });
-
-              ctx.fillStyle = '#e2e8f0';
-              roundRect(ctx, bx + 16, unitY + 7, bw - 32, 18, 999, true, false);
-
-              let cursorX = bx + 16;
-              unit.sessions.forEach((s, si) => {
-                const segW = (bw - 32) * (s.pagesDone / unit.totalPages);
-                const sessionIdx = allSessions.indexOf(s.name);
-                ctx.fillStyle = sessionIdx !== -1 ? colorPalette[sessionIdx % colorPalette.length] : '#3b82f6';
-                roundRect(ctx, cursorX, unitY + 7, segW, 18, 999, true, false);
-                cursorX += segW;
-              });
-
-              if (unit.uncompleted && String(unit.uncompleted).trim() !== "") {
-                const alertText = String(unit.uncompleted).includes('결석')
-                  ? '결석'
-                  : `미완료: ${unit.uncompleted}p`;
-
-                drawText(ctx, alertText, bx + 16, unitY + 48, {
-                  size: 8,
-                  weight: 900,
-                  color: '#f43f5e',
-                  baseline: 'alphabetic'
-                });
-              }
-
-              unitY += 78;
-            });
-          });
-
-          ctx.fillStyle = '#f8fafc';
-          ctx.fillRect(0, 642, W, 58);
-          ctx.strokeStyle = '#f1f5f9';
-          ctx.beginPath();
-          ctx.moveTo(0, 642);
-          ctx.lineTo(W, 642);
-          ctx.stroke();
-
-          drawText(ctx, 'MOONSAN YEOLLIN MATH PREMIUM SMART REPORT SYSTEM', W / 2, 676, {
-            size: 9,
-            weight: 900,
-            color: '#cbd5e1',
-            align: 'center',
-            baseline: 'middle'
-          });
-
-          ctx.restore();
-
-          const link = document.createElement('a');
-          link.download = `[열린 교재점검 리포트]_${data.name}.png`;
-          link.href = canvas.toDataURL('image/png', 1.0);
-          link.click();
+            const link = document.createElement('a');
+            link.download = `[열린 교재점검 리포트]_${data.name}.jpg`;
+            link.href = canvas.toDataURL('image/jpeg', 0.96);
+            link.click();
+          };
+          img.onerror = () => {
+            URL.revokeObjectURL(svgUrl);
+            alert("JPG 저장 중 오류가 발생했습니다.");
+          };
+          img.src = svgUrl;
         } catch (err) {
-          alert("이미지 저장 중 오류가 발생했습니다: " + err.message);
+          alert("JPG 저장 중 오류가 발생했습니다: " + err.message);
         }
       };
 
@@ -518,7 +375,7 @@
               <div className="flex gap-2">
                 <button onClick={handlePrint} className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold text-sm shadow-md hover:bg-indigo-700 transition active:scale-95 flex items-center gap-1.5"><IconPrinter /> 출력</button>
                 <button onClick={handleSendSMS} className="bg-white border-2 border-blue-600 text-blue-600 px-4 py-2 rounded-xl font-bold text-sm hover:bg-blue-50 transition active:scale-95 flex items-center gap-1.5"><IconSend /> 링크 전송</button>
-                <button onClick={handleDownloadImage} className="bg-slate-800 text-white px-4 py-2 rounded-xl font-bold text-sm shadow-md hover:bg-slate-700 transition active:scale-95 flex items-center gap-1.5"><IconDownload /> 이미지 저장</button>
+                <button onClick={handleDownloadImage} className="bg-slate-800 text-white px-4 py-2 rounded-xl font-bold text-sm shadow-md hover:bg-slate-700 transition active:scale-95 flex items-center gap-1.5"><IconDownload /> 이미지 저장(JPG)</button>
               </div>
             </div>
           )}
