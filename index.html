@@ -10,15 +10,14 @@
     <style>
         body {
             font-family: 'Noto Sans KR', sans-serif;
-            background-color: #f4f5f7; /* 원래 대시보드 배경색 복원 */
+            background-color: #f4f5f7;
         }
         .header-bg {
-            background-color: #111827; /* 다크 네이비 */
+            background-color: #111827;
         }
         .progress-bar-fill {
             transition: width 1s ease-out;
         }
-        /* 로딩 스피너 디자인 */
         .loader {
             border: 4px solid #f3f3f3;
             border-top: 4px solid #3b82f6;
@@ -35,16 +34,15 @@
 </head>
 <body class="min-h-screen text-gray-800 p-6 max-w-7xl mx-auto relative">
 
-    <!-- 데이터 로딩 중 화면 (앱스스크립트에서 데이터 가져올 때 표시) -->
+    <!-- 데이터 로딩 중 화면 -->
     <div id="loadingOverlay" class="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
         <div class="loader mb-4"></div>
-        <p class="text-gray-600 font-bold">학생 데이터를 불러오는 중입니다...</p>
+        <p class="text-gray-600 font-bold" id="loadingText">학생 데이터를 불러오는 중입니다...</p>
     </div>
 
     <!-- 상단 컨트롤 바 -->
     <div class="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm mb-6 border border-gray-100">
         <div class="flex items-center gap-2 w-1/3">
-            <!-- 자바스크립트가 시트 데이터를 읽어서 옵션을 알아서 꽉 채워줍니다 -->
             <select id="studentSelect" class="w-full bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 outline-none font-medium">
                 <option value="">데이터를 불러오는 중...</option>
             </select>
@@ -67,10 +65,14 @@
         <div class="absolute right-0 top-0 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2"></div>
         
         <div class="flex items-center gap-6 relative z-10">
-            <!-- ★ 선생님 요청: 실제 로고 이미지 삽입 공간 ★ -->
-            <div class="flex items-center gap-2">
-                <!-- 아래 src="여기에_이미지_주소_입력" 부분을 구글드라이브나 이미지 호스팅 주소로 바꾸시면 됩니다. -->
-                <img src="https://via.placeholder.com/150x50/111827/FFFFFF?text=Yeollin+Academy" alt="열린학원 로고" class="h-10 object-contain" id="academyLogo">
+            <!-- 깨지지 않는 자체 제작 열린학원 로고 (이미지 링크 불필요) -->
+            <div class="flex items-center gap-2 text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-400">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                    <path d="m9 10 2 2 4-4"></path>
+                </svg>
+                <span class="text-2xl font-black tracking-tight" style="font-family: 'Noto Sans KR', sans-serif;">열린학원</span>
             </div>
             
             <div class="h-10 w-px bg-gray-600"></div>
@@ -80,7 +82,7 @@
                     <h1 class="text-3xl font-black" id="headerName">-</h1>
                     <span class="text-gray-300 font-medium mb-1">학생</span>
                 </div>
-                <p class="text-sm text-gray-400">교재점검 누적리포트</p>
+                <p class="text-sm text-gray-400">고1_2. 서울대2반 | 교재점검 누적리포트</p>
             </div>
         </div>
 
@@ -104,7 +106,7 @@
         
         <!-- 왼쪽 열: 최근 과제 수행 추이 & 코멘트 -->
         <div class="flex flex-col gap-6">
-            <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+            <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 min-h-[250px]">
                 <div class="flex items-center gap-2 mb-6">
                     <i data-lucide="trending-up" class="w-5 h-5 text-gray-800"></i>
                     <h2 class="text-lg font-bold text-gray-800">최근 과제 수행 추이</h2>
@@ -141,54 +143,66 @@
     <script>
         lucide.createIcons();
 
-        // 시트 전체 데이터를 저장할 전역 변수 (이제 예시 데이터 없음!)
         let globalSheetData = [];
 
-        // 1. 페이지 로드 시 백엔드(Code.gs)에서 데이터 가져오기
+        // 우측 미리보기용 임시 데이터 (선생님 시트 사진과 똑같이 구성했습니다)
+        const mockDataForPreview = [
+            { "이름": "고준화", "회차": "1회차", "검사시작": 1, "검사끝": 19, "미완료": "14~19", "특이사항": "오답에 대한 정확한 표시와 다시 풀어보는 문제들을...", "교재명": "블랙라벨(공통수학1)" },
+            { "이름": "고준화", "회차": "2회차", "검사시작": 20, "검사끝": 26, "미완료": "21~26", "특이사항": "", "교재명": "블랙라벨(공통수학1)" },
+            { "이름": "고준화", "회차": "1회차", "검사시작": 6, "검사끝": 19, "미완료": "19", "특이사항": "교재 점검이 있을시 푼데까지는 채점을...", "교재명": "RPM(공통수학1)" },
+            { "이름": "고준화", "회차": "2회차", "검사시작": 44, "검사끝": 54, "미완료": "50,51,54", "특이사항": "", "교재명": "RPM(공통수학1)" },
+            { "이름": "국한울", "회차": "1회차", "검사시작": 1, "검사끝": 19, "미완료": "", "특이사항": "BEST!! ★★★★★ - 채점, 오답복습, 식세우는 습관 등등 모든게 완벽함", "교재명": "블랙라벨(공통수학1)" },
+            { "이름": "국한울", "회차": "2회차", "검사시작": 20, "검사끝": 26, "미완료": "26", "특이사항": "", "교재명": "블랙라벨(공통수학1)" },
+            { "이름": "국한울", "회차": "1회차", "검사시작": 6, "검사끝": 19, "미완료": "", "특이사항": "", "교재명": "RPM(공통수학1)" },
+            { "이름": "국한울", "회차": "2회차", "검사시작": 44, "검사끝": 54, "미완료": "", "특이사항": "BEST!! ★★★★ - 과제를 완벽하게 해오고, 오답문항도 고쳐옴", "교재명": "RPM(공통수학1)" },
+            { "이름": "권희주", "회차": "1회차", "검사시작": 1, "검사끝": 19, "미완료": "15~19", "특이사항": "풀이를 이면지에 풀었는데 가지고 오지 않아서 풀이 확인을 못함.", "교재명": "블랙라벨(공통수학1)" },
+            { "이름": "권희주", "회차": "2회차", "검사시작": 44, "검사끝": 54, "미완료": "49~54", "특이사항": "이번 회차에 과제를 거의 못해옴. 개인상담 진행함", "교재명": "RPM(공통수학1)" }
+        ];
+
         window.onload = () => {
+            // 구글 앱스 스크립트 환경(실제 배포)인지 확인
             if (typeof google !== 'undefined' && google.script) {
-                // 실제 구글 서버 환경에서 작동
                 google.script.run
                     .withSuccessHandler(onDataLoaded)
                     .withFailureHandler(onError)
-                    .getDashboardData(); // Code.gs에 작성된 함수 호출
+                    .getDashboardData(); // 백엔드 데이터 호출
             } else {
-                // 테스트 시 에러 방지용 메시지
-                document.getElementById('loadingOverlay').innerHTML = `<p class="text-red-500 font-bold">구글 앱스 스크립트 환경에서만 정상 작동합니다.</p>`;
+                // 우측 Preview 캔버스 환경 (에러 띄우지 않고 임시 데이터 보여줌)
+                console.log("미리보기 환경: 시트 데이터 대신 임시 데이터를 렌더링합니다.");
+                setTimeout(() => {
+                    onDataLoaded(mockDataForPreview);
+                }, 500); // 로딩 효과 살짝 주기
             }
         };
 
-        // 2. 데이터 로드 성공 시 실행되는 함수
         function onDataLoaded(data) {
             globalSheetData = data;
             
-            // 이름만 추출해서 중복 제거 (드롭다운 목록 만들기)
+            // 이름 추출 및 드롭다운 생성
             const uniqueStudents = [...new Set(data.map(row => row['이름']).filter(name => name))];
-            
             const selectElement = document.getElementById('studentSelect');
-            selectElement.innerHTML = ''; // 기존 "로딩중" 지우기
+            selectElement.innerHTML = '';
             
             if (uniqueStudents.length === 0) {
                 selectElement.innerHTML = '<option value="">데이터가 없습니다</option>';
             } else {
-                // 찾은 학생 이름들로 드롭다운 채우기
                 uniqueStudents.forEach(studentName => {
                     const option = document.createElement('option');
                     option.value = studentName;
-                    option.textContent = studentName;
+                    option.textContent = `[고1_2. 서울대2반] ${studentName}`;
                     selectElement.appendChild(option);
                 });
                 
-                // 첫 번째 학생으로 대시보드 바로 그리기
-                renderDashboard(uniqueStudents[0]);
+                // 첫 번째 학생 렌더링 (예: 국한울이 있으면 국한울 우선 선택)
+                const defaultStudent = uniqueStudents.includes('국한울') ? '국한울' : uniqueStudents[0];
+                selectElement.value = defaultStudent;
+                renderDashboard(defaultStudent);
             }
             
-            // 드롭다운 변경 이벤트 등록
             selectElement.addEventListener('change', (e) => {
                 renderDashboard(e.target.value);
             });
 
-            // 로딩 화면 숨기기
             document.getElementById('loadingOverlay').style.display = 'none';
         }
 
@@ -198,7 +212,7 @@
             document.getElementById('loadingOverlay').style.display = 'none';
         }
 
-        // 미완료 페이지 수 계산 ("14~19" 또는 "50,51,54" 처리)
+        // 미완료 페이지 수 정밀 계산 로직
         function calculateIncompletePages(incompleteStr) {
             if (!incompleteStr) return 0;
             let count = 0;
@@ -219,7 +233,6 @@
             return count;
         }
 
-        // 3. 선택된 학생의 데이터를 계산해서 화면에 뿌려주는 메인 함수
         function renderDashboard(targetStudent) {
             if (!targetStudent) return;
             
@@ -230,11 +243,10 @@
             let completedPagesAll = 0;
             let lastComment = "작성된 선생님 코멘트가 없습니다.";
             
-            const sessionData = {}; // 회차별
-            const textbookData = {}; // 교재별
+            const sessionData = {}; 
+            const textbookData = {};
 
             studentData.forEach(row => {
-                // ★ 여기서 시트 헤더 이름을 찾습니다. (선생님 시트: '검사시작', '검사끝', '미완료', '회차', '교재명')
                 const start = parseInt(row['검사시작']) || 0;
                 const end = parseInt(row['검사끝']) || 0;
                 
@@ -249,7 +261,6 @@
                 totalPagesAll += totalRowPages;
                 completedPagesAll += completedRowPages;
 
-                // 회차별 계산
                 const session = row['회차'];
                 if (session) {
                     if (!sessionData[session]) sessionData[session] = { total: 0, completed: 0 };
@@ -257,7 +268,6 @@
                     sessionData[session].completed += completedRowPages;
                 }
 
-                // 교재별 계산
                 const textbook = row['교재명'];
                 if (textbook) {
                     if (!textbookData[textbook]) textbookData[textbook] = { total: 0, completed: 0 };
@@ -265,13 +275,12 @@
                     textbookData[textbook].completed += completedRowPages;
                 }
 
-                // 가장 마지막 코멘트 가져오기
                 if (row['특이사항'] && String(row['특이사항']).trim() !== '') {
                     lastComment = row['특이사항'];
                 }
             });
 
-            // 상단 Total Rate
+            // 상단 토탈 달성률
             let totalRate = 0;
             if (totalPagesAll > 0) {
                 totalRate = Math.round((completedPagesAll / totalPagesAll) * 100);
@@ -279,7 +288,7 @@
             document.getElementById('totalRate').innerText = totalRate;
             document.getElementById('teacherComment').innerText = `"${lastComment}"`;
 
-            // 왼쪽: 최근 과제 수행 추이 렌더링
+            // 회차별 그래프
             const sessionContainer = document.getElementById('sessionProgressContainer');
             sessionContainer.innerHTML = '';
             
@@ -305,7 +314,7 @@
                 sessionContainer.insertAdjacentHTML('beforeend', html);
             });
 
-            // 오른쪽: 교재별 누적 학습 현황 렌더링
+            // 교재별 카드 그래프
             const textbookContainer = document.getElementById('textbookContainer');
             textbookContainer.innerHTML = '';
 
@@ -332,7 +341,6 @@
                 textbookContainer.insertAdjacentHTML('beforeend', html);
             });
 
-            // 애니메이션 부드럽게 실행
             setTimeout(() => {
                 document.querySelectorAll('.progress-bar-fill').forEach(bar => {
                     bar.style.width = bar.getAttribute('data-width');
