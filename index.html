@@ -7,6 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- 이미지 저장을 위한 라이브러리 추가 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         body {
             font-family: 'Noto Sans KR', sans-serif;
@@ -30,38 +32,45 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        /* 인쇄할 때 상단 컨트롤 바 숨기기 */
+        @media print {
+            .no-print { display: none !important; }
+            body { background-color: white; }
+            .header-bg { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+        }
     </style>
 </head>
-<body class="min-h-screen text-gray-800 p-6 max-w-7xl mx-auto relative">
+<body class="min-h-screen text-gray-800 p-6 max-w-7xl mx-auto relative" id="reportArea">
 
     <!-- 데이터 로딩 중 화면 -->
-    <div id="loadingOverlay" class="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
+    <div id="loadingOverlay" class="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center no-print">
         <div class="loader mb-4"></div>
         <p class="text-gray-600 font-bold">학생 데이터를 불러오는 중입니다...</p>
     </div>
 
-    <!-- 상단 컨트롤 바 -->
-    <div class="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm mb-6 border border-gray-100">
+    <!-- 상단 컨트롤 바 (no-print 클래스 추가됨) -->
+    <div class="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm mb-6 border border-gray-100 no-print">
         <div class="flex items-center gap-2 w-1/3">
-            <select id="studentSelect" class="w-full bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 outline-none font-medium">
+            <select id="studentSelect" class="w-full bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 outline-none font-medium cursor-pointer">
                 <option value="">데이터를 불러오는 중...</option>
             </select>
         </div>
         <div class="flex gap-2">
-            <button class="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors">
+            <!-- 작동 안 하던 버튼들 기능 완벽 복구 -->
+            <button onclick="window.print()" class="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors">
                 <i data-lucide="printer" class="w-4 h-4"></i> 출력
             </button>
-            <button class="flex items-center gap-2 border border-blue-500 text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg text-sm font-bold transition-colors bg-white">
-                <i data-lucide="send" class="w-4 h-4"></i> 링크 전송
+            <button onclick="copyToClipboard()" class="flex items-center gap-2 border border-blue-500 text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg text-sm font-bold transition-colors bg-white">
+                <i data-lucide="link" class="w-4 h-4"></i> 링크 복사
             </button>
-            <button class="flex items-center gap-2 bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors">
+            <button onclick="saveAsImage()" class="flex items-center gap-2 bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors">
                 <i data-lucide="download" class="w-4 h-4"></i> 이미지 저장
             </button>
         </div>
     </div>
 
     <!-- 메인 대시보드 헤더 -->
-    <div class="header-bg rounded-3xl p-8 mb-8 text-white flex justify-between items-center shadow-lg relative overflow-hidden">
+    <div class="header-bg rounded-3xl p-8 mb-8 text-white flex justify-between items-center shadow-lg relative overflow-hidden" id="captureArea">
         <div class="absolute right-0 top-0 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2"></div>
         
         <div class="flex items-center gap-6 relative z-10">
@@ -90,8 +99,9 @@
                     <span class="text-lg font-bold text-gray-300">%</span>
                 </div>
             </div>
-            <div class="w-12 h-12 bg-rose-500 rounded-full flex items-center justify-center shadow-lg shadow-rose-500/30">
-                <i data-lucide="check" class="w-6 h-6 text-white stroke-[3]"></i>
+            <!-- 색상이 변하는 아이콘 컨테이너 -->
+            <div id="totalRateContainer" class="w-12 h-12 bg-rose-500 rounded-full flex items-center justify-center shadow-lg shadow-rose-500/30 text-white">
+                <i data-lucide="check" class="w-6 h-6 stroke-[3]"></i>
             </div>
         </div>
     </div>
@@ -101,22 +111,25 @@
         
         <!-- 왼쪽 열: 최근 과제 수행 추이 & 코멘트 -->
         <div class="flex flex-col gap-6">
-            <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 min-h-[250px]">
-                <div class="flex items-center gap-2 mb-6">
+            <!-- 제목을 흰 박스 밖으로 뺌 -->
+            <div>
+                <div class="flex items-center gap-2 mb-4 px-2">
                     <i data-lucide="trending-up" class="w-5 h-5 text-gray-800"></i>
                     <h2 class="text-lg font-bold text-gray-800">최근 과제 수행 추이</h2>
                 </div>
-                <div class="space-y-5" id="sessionProgressContainer">
-                    <!-- JS로 동적 생성됨 -->
+                <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 min-h-[250px]">
+                    <div class="space-y-5" id="sessionProgressContainer">
+                        <!-- JS로 동적 생성됨 -->
+                    </div>
                 </div>
             </div>
 
             <!-- 선생님 코멘트 -->
-            <div class="bg-indigo-50/50 rounded-3xl p-6 border border-indigo-100 relative">
+            <div class="bg-indigo-50/50 rounded-3xl p-6 border border-indigo-100 relative mt-4">
                 <div class="inline-flex items-center gap-2 bg-white border border-indigo-200 text-indigo-600 px-3 py-1 rounded-full text-xs font-bold mb-4 shadow-sm -mt-10">
                     <i data-lucide="message-circle" class="w-3 h-3"></i> Teacher's Comment
                 </div>
-                <p id="teacherComment" class="text-sm text-gray-700 font-medium leading-relaxed">
+                <p id="teacherComment" class="text-sm text-gray-700 font-medium leading-relaxed whitespace-pre-wrap">
                     불러오는 중입니다...
                 </p>
             </div>
@@ -139,21 +152,53 @@
         lucide.createIcons();
         let globalSheetData = [];
 
-        // ★★★ [매우 중요] 앱스 스크립트 배포 후 얻은 웹앱 URL을 아래 따옴표 안에 붙여넣으세요! ★★★
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbya59NwpvmaaPXbhvuvIDf4spaGy_M7m4nzjgqykvlGUdIf6Hmd5veavpVal_ogFwpD9w/exec";
+        // 색상 팔레트 (회차별, 단원별로 다르게 적용하기 위함)
+        const colorPalette = [
+            {bg: 'bg-blue-500', track: 'bg-blue-100', text: 'text-blue-600'},
+            {bg: 'bg-indigo-500', track: 'bg-indigo-100', text: 'text-indigo-600'},
+            {bg: 'bg-violet-500', track: 'bg-violet-100', text: 'text-violet-600'},
+            {bg: 'bg-emerald-500', track: 'bg-emerald-100', text: 'text-emerald-600'},
+            {bg: 'bg-amber-500', track: 'bg-amber-100', text: 'text-amber-600'},
+            {bg: 'bg-rose-500', track: 'bg-rose-100', text: 'text-rose-600'}
+        ];
+
+        // ★★★ [매우 중요] 깃허브 올리실 때 구글 웹앱 URL은 그대로 유지하세요! ★★★
+        const GAS_URL = "여기에_구글_스크립트_웹앱_URL을_붙여넣으세요";
+
+        // ---- 버튼 기능 구현 ----
+        function copyToClipboard() {
+            navigator.clipboard.writeText(window.location.href)
+                .then(() => alert("학부모님께 전송할 리포트 주소가 복사되었습니다!"))
+                .catch(() => alert("복사에 실패했습니다. 주소창의 URL을 직접 복사해주세요."));
+        }
+
+        function saveAsImage() {
+            alert("이미지 변환을 시작합니다. 잠시만 기다려주세요.");
+            // 버튼이 포함된 컨트롤 바를 숨기고 캡처
+            const overlay = document.querySelector('.no-print');
+            overlay.style.display = 'none';
+            
+            html2canvas(document.body, { backgroundColor: '#f4f5f7', scale: 2 }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = document.getElementById('headerName').innerText + "_분석리포트.png";
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+                overlay.style.display = 'flex'; // 캡처 후 다시 표시
+            });
+        }
+        // ------------------------
 
         window.onload = () => {
-            // URL이 제대로 안 들어갔을 경우 안내
+            // URL 확인 및 가이드
             if (GAS_URL.includes("여기에_구글_스크립트_웹앱_URL")) {
                 document.getElementById('loadingOverlay').innerHTML = `
                     <div class="bg-white p-6 rounded-xl shadow-lg text-center">
                         <p class="text-red-500 font-bold mb-2">구글 웹앱 URL이 입력되지 않았습니다!</p>
-                        <p class="text-sm text-gray-600">HTML 파일 162번째 줄의 GAS_URL 부분에<br>발급받은 주소를 붙여넣어 주세요.</p>
+                        <p class="text-sm text-gray-600">HTML 파일의 GAS_URL 부분에 발급받은 주소를 넣어주세요.</p>
                     </div>`;
                 return;
             }
 
-            // 구글 시트 데이터를 가져오는 Fetch API 코드
             fetch(GAS_URL)
                 .then(response => response.json())
                 .then(data => onDataLoaded(data))
@@ -163,7 +208,6 @@
         function onDataLoaded(data) {
             globalSheetData = data;
             
-            // 이름 추출 및 드롭다운 생성 (빈칸 제외)
             const uniqueStudents = [...new Set(data.map(row => row['이름']).filter(name => name))];
             const selectElement = document.getElementById('studentSelect');
             selectElement.innerHTML = '';
@@ -174,12 +218,10 @@
                 uniqueStudents.forEach(studentName => {
                     const option = document.createElement('option');
                     option.value = studentName;
-                    // 학생 이름 설정 (과정명은 디자인상 고정해둠)
                     option.textContent = `[고1_2. 서울대2반] ${studentName}`;
                     selectElement.appendChild(option);
                 });
                 
-                // 첫 번째 학생 렌더링
                 const defaultStudent = uniqueStudents[0];
                 selectElement.value = defaultStudent;
                 renderDashboard(defaultStudent);
@@ -198,7 +240,7 @@
                 </div>`;
         }
 
-        // 미완료 페이지 수 정밀 계산 로직 (14~19, 50,51,54 등 모두 처리)
+        // 미완료 페이지 수 정밀 계산
         function calculateIncompletePages(incompleteStr) {
             if (!incompleteStr) return 0;
             let count = 0;
@@ -219,7 +261,6 @@
             return count;
         }
 
-        // 대시보드 렌더링
         function renderDashboard(targetStudent) {
             if (!targetStudent) return;
             
@@ -248,6 +289,7 @@
                 totalPagesAll += totalRowPages;
                 completedPagesAll += completedRowPages;
 
+                // 회차별 데이터 취합
                 const session = row['회차'];
                 if (session) {
                     if (!sessionData[session]) sessionData[session] = { total: 0, completed: 0 };
@@ -255,11 +297,23 @@
                     sessionData[session].completed += completedRowPages;
                 }
 
+                // 교재별/상세 내역 취합
                 const textbook = row['교재명'];
                 if (textbook) {
-                    if (!textbookData[textbook]) textbookData[textbook] = { total: 0, completed: 0 };
+                    if (!textbookData[textbook]) textbookData[textbook] = { total: 0, completed: 0, details: [] };
                     textbookData[textbook].total += totalRowPages;
                     textbookData[textbook].completed += completedRowPages;
+                    
+                    // 단원(세부) 정보 저장
+                    if (totalRowPages > 0) {
+                        textbookData[textbook].details.push({
+                            session: session || '-',
+                            start: start,
+                            end: end,
+                            totalRowPages: totalRowPages,
+                            percent: Math.round((completedRowPages / totalRowPages) * 100)
+                        });
+                    }
                 }
 
                 if (row['특이사항'] && String(row['특이사항']).trim() !== '') {
@@ -267,12 +321,26 @@
                 }
             });
 
-            // 토탈 달성률 및 코멘트
+            // --- 1. 토탈 달성률 계산 및 색상 변경 로직 적용 ---
             let totalRate = totalPagesAll > 0 ? Math.round((completedPagesAll / totalPagesAll) * 100) : 0;
             document.getElementById('totalRate').innerText = totalRate;
+            
+            const rateContainer = document.getElementById('totalRateContainer');
+            rateContainer.className = "w-12 h-12 rounded-full flex items-center justify-center shadow-lg text-white transition-colors duration-500";
+            
+            if (totalRate >= 90) {
+                rateContainer.classList.add('bg-emerald-500', 'shadow-emerald-500/30'); // 90 이상 초록
+            } else if (totalRate >= 70) {
+                rateContainer.classList.add('bg-blue-500', 'shadow-blue-500/30'); // 70 이상 파랑
+            } else if (totalRate >= 50) {
+                rateContainer.classList.add('bg-amber-500', 'shadow-amber-500/30'); // 50 이상 노랑
+            } else {
+                rateContainer.classList.add('bg-rose-500', 'shadow-rose-500/30'); // 그 이하 빨강
+            }
+
             document.getElementById('teacherComment').innerText = `"${lastComment}"`;
 
-            // 최근 과제 수행 추이
+            // --- 2. 최근 과제 수행 추이 (회차별 색상 다르게) ---
             const sessionContainer = document.getElementById('sessionProgressContainer');
             sessionContainer.innerHTML = '';
             const sortedSessions = Object.keys(sessionData).sort();
@@ -281,21 +349,25 @@
                 sessionContainer.innerHTML = '<p class="text-sm text-gray-500">수행 내역이 없습니다.</p>';
             }
 
-            sortedSessions.forEach(session => {
+            sortedSessions.forEach((session, index) => {
                 const data = sessionData[session];
                 let percent = data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0;
+                
+                // 팔레트에서 색상 가져오기 (회차마다 다르게)
+                const colors = colorPalette[index % colorPalette.length];
+
                 const html = `
                     <div class="flex items-center gap-4">
                         <span class="w-12 text-sm font-bold text-gray-600">${session}</span>
-                        <div class="flex-1 bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                            <div class="bg-blue-500 h-full rounded-full progress-bar-fill" style="width: 0%" data-width="${percent}%"></div>
+                        <div class="flex-1 ${colors.track} h-2.5 rounded-full overflow-hidden">
+                            <div class="${colors.bg} h-full rounded-full progress-bar-fill" style="width: 0%" data-width="${percent}%"></div>
                         </div>
                         <span class="w-10 text-right text-sm font-black text-gray-800">${percent}%</span>
                     </div>`;
                 sessionContainer.insertAdjacentHTML('beforeend', html);
             });
 
-            // 교재별 누적 학습 현황
+            // --- 3. 교재별 누적 학습 현황 (단원 상세 내역 포함) ---
             const textbookContainer = document.getElementById('textbookContainer');
             textbookContainer.innerHTML = '';
 
@@ -306,15 +378,42 @@
             Object.keys(textbookData).forEach(bookName => {
                 const data = textbookData[bookName];
                 let percent = data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0;
-                const html = `
-                    <div class="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-                        <h3 class="font-bold text-gray-800 mb-6 text-sm truncate">${bookName}</h3>
-                        <div class="flex justify-between items-end mb-2">
-                            <span class="text-xs text-gray-400 font-medium">(총 ${data.total}p)</span>
-                            <span class="text-sm font-black text-blue-500">${percent}%</span>
+                
+                // 단원별(기록장 줄 별) 시작, 끝, 총 페이지 상세 내역 HTML 생성
+                let detailsHtml = data.details.map((detail, idx) => {
+                    const c = colorPalette[idx % colorPalette.length];
+                    return `
+                    <div class="flex justify-between items-center text-xs mt-3">
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full ${c.bg}"></span>
+                            <span class="font-bold text-gray-700 w-10">${detail.session}</span>
+                            <span class="text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">${detail.start}p ~ ${detail.end}p</span>
                         </div>
-                        <div class="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                            <div class="bg-blue-100 h-full rounded-full progress-bar-fill" style="width: 0%" data-width="${percent}%"></div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-gray-400 font-medium">(총 ${detail.totalRowPages}p)</span>
+                            <span class="font-black ${c.text}">${detail.percent}%</span>
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+
+                const html = `
+                    <div class="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm flex flex-col justify-between">
+                        <div>
+                            <div class="flex justify-between items-start mb-4">
+                                <h3 class="font-bold text-gray-800 text-sm truncate flex-1 pr-2">${bookName}</h3>
+                                <span class="text-xl font-black text-blue-600">${percent}%</span>
+                            </div>
+                            <!-- 누적 게이지 -->
+                            <div class="w-full bg-blue-50 h-2 rounded-full overflow-hidden mb-2">
+                                <div class="bg-blue-500 h-full rounded-full progress-bar-fill" style="width: 0%" data-width="${percent}%"></div>
+                            </div>
+                            <p class="text-xs text-right text-gray-400 font-medium mb-4">누적 ${data.total}p</p>
+                        </div>
+                        
+                        <!-- 단원별(상세) 진도 현황 -->
+                        <div class="border-t border-gray-100 pt-2">
+                            ${detailsHtml}
                         </div>
                     </div>`;
                 textbookContainer.insertAdjacentHTML('beforeend', html);
