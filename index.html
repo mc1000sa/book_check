@@ -3,210 +3,299 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>문산 열린학원 - 일일 학습 분석 리포트</title>
+    <title>문산 열린학원 - 누적 학습 분석 리포트</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         body {
             font-family: 'Noto Sans KR', sans-serif;
-            background-color: #f3f4f6;
+            background-color: #f4f5f7; /* 이전 대시보드 배경색과 유사하게 */
         }
-        /* 원형 프로그래스 바 애니메이션 효과 */
-        .progress-ring__circle {
-            transition: stroke-dashoffset 1s ease-in-out;
-            transform: rotate(-90deg);
-            transform-origin: 50% 50%;
+        .header-bg {
+            background-color: #111827; /* 다크 네이비 */
+        }
+        /* 프로그래스 바 애니메이션 */
+        .progress-bar-fill {
+            transition: width 1s ease-out;
         }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-4">
+<body class="min-h-screen text-gray-800 p-6 max-w-7xl mx-auto">
 
-    <!-- 리포트 메인 카드 -->
-    <div class="bg-white w-full max-w-md rounded-3xl shadow-xl overflow-hidden border border-gray-100">
+    <!-- 상단 컨트롤 바 (원래 있던 학생 선택 및 버튼들) -->
+    <div class="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm mb-6 border border-gray-100">
+        <div class="flex items-center gap-2 w-1/3">
+            <select id="studentSelect" class="w-full bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 outline-none font-medium">
+                <option value="국한울">[고1_2. 서울대2반] 국한울</option>
+                <option value="고준화">[고1_2. 서울대2반] 고준화</option>
+                <option value="권희주">[고1_2. 서울대2반] 권희주</option>
+            </select>
+        </div>
+        <div class="flex gap-2">
+            <button class="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors">
+                <i data-lucide="printer" class="w-4 h-4"></i> 출력
+            </button>
+            <button class="flex items-center gap-2 border border-blue-500 text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg text-sm font-bold transition-colors bg-white">
+                <i data-lucide="send" class="w-4 h-4"></i> 링크 전송
+            </button>
+            <button class="flex items-center gap-2 bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors">
+                <i data-lucide="download" class="w-4 h-4"></i> 이미지 저장
+            </button>
+        </div>
+    </div>
+
+    <!-- 메인 대시보드 헤더 -->
+    <div class="header-bg rounded-3xl p-8 mb-8 text-white flex justify-between items-center shadow-lg relative overflow-hidden">
+        <!-- 배경 장식 (원래 UI의 부드러운 느낌 연출) -->
+        <div class="absolute right-0 top-0 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2"></div>
         
-        <!-- 헤더 영역 -->
-        <div class="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 text-white text-center relative">
-            <h1 class="text-2xl font-black tracking-tight">일일 학습 분석 리포트</h1>
-            <p class="text-blue-100 text-sm mt-1 font-medium">문산 열린학원 고등부</p>
-            <div class="absolute top-4 right-4 bg-white/20 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm">
-                <span id="reportDate">2026.04.18</span>
+        <div class="flex items-center gap-6 relative z-10">
+            <div class="flex items-center gap-2">
+                <!-- 로고 대체 아이콘 -->
+                <i data-lucide="book-open-check" class="w-8 h-8 text-blue-400"></i>
+                <span class="text-xl font-bold tracking-tight">열린학원</span>
             </div>
-        </div>
-
-        <!-- 학생 정보 영역 -->
-        <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-end">
+            <div class="h-10 w-px bg-gray-600"></div>
             <div>
-                <p class="text-sm text-gray-500 font-medium mb-1">수학 집중관리</p>
-                <div class="flex items-baseline gap-2">
-                    <h2 class="text-3xl font-extrabold text-gray-800" id="studentName">국한울</h2>
-                    <span class="text-lg text-gray-600 font-medium">학생</span>
+                <div class="flex items-end gap-2 mb-1">
+                    <h1 class="text-3xl font-black" id="headerName">국한울</h1>
+                    <span class="text-gray-300 font-medium mb-1">학생</span>
                 </div>
-            </div>
-            <div class="text-right">
-                <span id="courseName" class="inline-block bg-indigo-50 text-indigo-700 px-3 py-1 rounded-lg text-sm font-bold border border-indigo-100">
-                    수1
-                </span>
+                <p class="text-sm text-gray-400">고1_2. 서울대2반 | 교재점검 누적리포트</p>
             </div>
         </div>
 
-        <!-- 핵심 성취도 (원형 프로그래스) -->
-        <div class="p-6 flex flex-col items-center">
-            <h3 class="text-sm font-bold text-gray-400 mb-4 tracking-wider uppercase">오늘의 목표 달성률</h3>
-            
-            <div class="relative w-40 h-40 flex items-center justify-center">
-                <!-- SVG 프로그래스 바 -->
-                <svg class="w-full h-full absolute top-0 left-0" viewBox="0 0 120 120">
-                    <circle class="text-gray-100" stroke-width="12" stroke="currentColor" fill="transparent" r="50" cx="60" cy="60" />
-                    <circle id="progressCircle" class="text-blue-600 progress-ring__circle" stroke-width="12" stroke-linecap="round" stroke="currentColor" fill="transparent" r="50" cx="60" cy="60" />
-                </svg>
-                <div class="text-center z-10 flex flex-col items-center">
-                    <span id="progressPercent" class="text-4xl font-black text-gray-800">0%</span>
+        <!-- 토탈 달성률 (Total Rate) -->
+        <div class="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 flex items-center gap-4 relative z-10">
+            <div>
+                <p class="text-[10px] text-gray-300 font-bold tracking-widest uppercase mb-1">Total Rate</p>
+                <div class="flex items-baseline gap-1">
+                    <span class="text-3xl font-black" id="totalRate">0</span>
+                    <span class="text-lg font-bold text-gray-300">%</span>
                 </div>
             </div>
-
-            <!-- 학습량 상세 수치 -->
-            <div class="w-full grid grid-cols-3 gap-2 mt-6">
-                <div class="bg-gray-50 rounded-xl p-3 text-center">
-                    <p class="text-xs text-gray-500 font-medium">총 페이지</p>
-                    <p class="text-lg font-bold text-gray-800 mt-1"><span id="totalPages">0</span><span class="text-sm font-normal text-gray-500">p</span></p>
-                </div>
-                <div class="bg-blue-50 rounded-xl p-3 text-center border border-blue-100">
-                    <p class="text-xs text-blue-600 font-bold">완료</p>
-                    <p class="text-lg font-black text-blue-700 mt-1"><span id="completedPages">0</span><span class="text-sm font-normal text-blue-500">p</span></p>
-                </div>
-                <div class="bg-red-50 rounded-xl p-3 text-center">
-                    <p class="text-xs text-red-500 font-medium">미완료</p>
-                    <p class="text-lg font-bold text-red-600 mt-1"><span id="incompletePages">0</span><span class="text-sm font-normal text-red-400">p</span></p>
-                </div>
+            <div class="w-12 h-12 bg-rose-500 rounded-full flex items-center justify-center shadow-lg shadow-rose-500/30">
+                <i data-lucide="check" class="w-6 h-6 text-white stroke-[3]"></i>
             </div>
         </div>
+    </div>
 
-        <!-- 단원 및 교재 정보 -->
-        <div class="px-6 py-4 bg-gray-50 border-t border-b border-gray-100">
-            <div class="flex items-start gap-3 mb-3">
-                <div class="bg-white p-2 rounded-lg shadow-sm">
-                    <i data-lucide="book-open" class="w-5 h-5 text-indigo-500"></i>
+    <!-- 메인 컨텐츠 영역 (2단 레이아웃) -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- 왼쪽 열: 최근 과제 수행 추이 & 코멘트 -->
+        <div class="flex flex-col gap-6">
+            <!-- 최근 과제 수행 추이 -->
+            <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+                <div class="flex items-center gap-2 mb-6">
+                    <i data-lucide="trending-up" class="w-5 h-5 text-gray-800"></i>
+                    <h2 class="text-lg font-bold text-gray-800">최근 과제 수행 추이</h2>
                 </div>
-                <div>
-                    <p class="text-xs text-gray-500 font-medium">학습 교재</p>
-                    <p id="textbookName" class="text-sm font-bold text-gray-800">로딩중...</p>
-                </div>
-            </div>
-            <div class="flex items-start gap-3">
-                <div class="bg-white p-2 rounded-lg shadow-sm">
-                    <i data-lucide="target" class="w-5 h-5 text-indigo-500"></i>
-                </div>
-                <div>
-                    <p class="text-xs text-gray-500 font-medium">학습 단원</p>
-                    <p id="unitName" class="text-sm font-bold text-gray-800">로딩중...</p>
+                <div class="space-y-5" id="sessionProgressContainer">
+                    <!-- JS로 동적 생성됨 -->
                 </div>
             </div>
-        </div>
 
-        <!-- 선생님 코멘트 -->
-        <div class="p-6">
-            <div class="flex items-center gap-2 mb-3">
-                <h3 class="text-sm font-bold text-gray-800">선생님 총평</h3>
-                <span id="evaluationBadge" class="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded font-bold">훌륭합니다</span>
-            </div>
-            <div class="bg-blue-50/50 rounded-xl p-4 border border-blue-100 relative">
-                <i data-lucide="quote" class="w-6 h-6 text-blue-200 absolute top-3 right-3 rotate-180"></i>
-                <p id="teacherComment" class="text-sm text-gray-700 leading-relaxed font-medium relative z-10">
-                    내용을 불러오는 중입니다...
+            <!-- 선생님 코멘트 -->
+            <div class="bg-indigo-50/50 rounded-3xl p-6 border border-indigo-100 relative">
+                <div class="inline-flex items-center gap-2 bg-white border border-indigo-200 text-indigo-600 px-3 py-1 rounded-full text-xs font-bold mb-4 shadow-sm -mt-10">
+                    <i data-lucide="message-circle" class="w-3 h-3"></i> Teacher's Comment
+                </div>
+                <p id="teacherComment" class="text-sm text-gray-700 font-medium leading-relaxed">
+                    선생님 코멘트가 없습니다.
                 </p>
             </div>
         </div>
 
-        <!-- 하단 푸터 -->
-        <div class="bg-gray-800 p-4 text-center">
-            <p class="text-gray-400 text-xs">본 리포트는 문산 열린학원 고등부 성적분석 시스템에서 발송되었습니다.</p>
+        <!-- 오른쪽 열: 단원별 누적 학습 현황 -->
+        <div class="lg:col-span-2">
+            <div class="flex items-center gap-2 mb-4 px-2">
+                <i data-lucide="layout-grid" class="w-5 h-5 text-gray-800"></i>
+                <h2 class="text-lg font-bold text-gray-800">교재별 누적 학습 현황</h2>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="textbookContainer">
+                <!-- JS로 동적 생성됨 -->
+            </div>
         </div>
     </div>
 
     <script>
-        // 아이콘 초기화
         lucide.createIcons();
 
-        // 1. 구글 시트에서 가져올 가상의 데이터 (선생님의 시트 헤더명과 100% 일치시킴!)
-        // 실제 연동 시에는 이 부분을 구글 앱스 스크립트(google.script.run)에서 받아오도록 수정하면 됩니다.
-        const sheetData = {
-            "날짜": "4/18",
-            "이름": "국한울",
-            "과정": "수1",
-            "대단원": "삼각함수",
-            "소단원": "삼각함수",
-            "검사시작": 72,      // <--- 수정된 헤더명 완벽 반영!
-            "검사끝": 81,        // <--- 수정된 헤더명 완벽 반영!
-            "미완료": 0,
-            "교재명": "RPM",     // <--- 수정된 헤더명 완벽 반영!
-            "특이사항": "BEST!! ★★★★★\n과제 완성도가 매우 높고 오답정리까지 완벽하게 해왔습니다. 이 기세로 가면 1등급 무난합니다!",
-            "총평선택": "훌륭합니다"
-        };
-
-        // 2. 데이터 분석 및 계산 로직 (에러의 원인이었던 null 문제 해결)
-        function analyzeData(data) {
-            // 빈 칸이거나 문자가 섞여있어도 안전하게 숫자로 변환 (값이 없으면 0으로 처리)
-            const startPage = parseInt(data['검사시작']) || 0;
-            const endPage = parseInt(data['검사끝']) || 0;
-            const incompletePages = parseInt(data['미완료']) || 0;
-
-            // 총 페이지수 계산 로직
-            let totalPages = 0;
-            if (endPage >= startPage && endPage > 0) {
-                totalPages = (endPage - startPage) + 1;
-            }
-
-            // 완료된 페이지 및 달성률 계산
-            const completedPages = Math.max(0, totalPages - incompletePages);
-            let achievementRate = 0;
-            if (totalPages > 0) {
-                achievementRate = Math.round((completedPages / totalPages) * 100);
-            }
-
-            // 계산된 데이터 화면에 뿌려주기
-            document.getElementById('reportDate').innerText = `2026.${data['날짜'].replace('/', '.')}`;
-            document.getElementById('studentName').innerText = data['이름'];
-            document.getElementById('courseName').innerText = data['과정'];
-            document.getElementById('textbookName').innerText = data['교재명'];
-            document.getElementById('unitName').innerText = `${data['대단원']} > ${data['소단원']}`;
+        // 1. 선생님의 구글 시트 이미지를 바탕으로 작성한 완벽한 가상 데이터
+        const sheetData = [
+            // 국한울 학생 데이터
+            { "이름": "국한울", "회차": "1회차", "검사시작": 6, "검사끝": 19, "미완료": "", "특이사항": "", "교재명": "RPM(공통수학1)" },
+            { "이름": "국한울", "회차": "1회차", "검사시작": 20, "검사끝": 31, "미완료": "", "특이사항": "", "교재명": "RPM(공통수학1)" },
+            { "이름": "국한울", "회차": "1회차", "검사시작": 32, "검사끝": 41, "미완료": "", "특이사항": "", "교재명": "RPM(공통수학1)" },
+            { "이름": "국한울", "회차": "2회차", "검사시작": 44, "검사끝": 54, "미완료": "", "특이사항": "BEST!! ★★★★ - 과제를 완벽하게 해오고, 오답문항도 고쳐옴", "교재명": "RPM(공통수학1)" },
+            { "이름": "국한울", "회차": "2회차", "검사시작": 56, "검사끝": 69, "미완료": "", "특이사항": "", "교재명": "RPM(공통수학1)" },
+            { "이름": "국한울", "회차": "3회차", "검사시작": 70, "검사끝": 75, "미완료": "", "특이사항": "", "교재명": "RPM(공통수학1)" },
+            { "이름": "국한울", "회차": "4회차", "검사시작": 76, "검사끝": 80, "미완료": "78, 79", "특이사항": "", "교재명": "RPM(공통수학1)" }, // 임의 추가 4회차
+            { "이름": "국한울", "회차": "1회차", "검사시작": 1, "검사끝": 19, "미완료": "", "특이사항": "", "교재명": "블랙라벨(공통수학1)" },
+            { "이름": "국한울", "회차": "2회차", "검사시작": 20, "검사끝": 26, "미완료": "26", "특이사항": "", "교재명": "블랙라벨(공통수학1)" },
+            { "이름": "국한울", "회차": "3회차", "검사시작": 28, "검사끝": 35, "미완료": "", "특이사항": "", "교재명": "블랙라벨(공통수학1)" },
+            { "이름": "국한울", "회차": "3회차", "검사시작": 39, "검사끝": 43, "미완료": "40~43", "특이사항": "", "교재명": "블랙라벨(공통수학1)" },
             
-            document.getElementById('totalPages').innerText = totalPages;
-            document.getElementById('completedPages').innerText = completedPages;
-            document.getElementById('incompletePages').innerText = incompletePages;
-            document.getElementById('progressPercent').innerText = `${achievementRate}%`;
-            document.getElementById('teacherComment').innerText = data['특이사항'];
-            document.getElementById('evaluationBadge').innerText = data['총평선택'];
+            // 고준화 학생 데이터 (비교용)
+            { "이름": "고준화", "회차": "1회차", "검사시작": 1, "검사끝": 19, "미완료": "14~19", "특이사항": "오답에 대한 정확한 표시와 다시 풀어보는 문제들을...", "교재명": "블랙라벨(공통수학1)" },
+            { "이름": "고준화", "회차": "2회차", "검사시작": 20, "검사끝": 26, "미완료": "21~26", "특이사항": "", "교재명": "블랙라벨(공통수학1)" },
+            { "이름": "고준화", "회차": "1회차", "검사시작": 6, "검사끝": 19, "미완료": "19", "특이사항": "", "교재명": "RPM(공통수학1)" }
+        ];
 
-            // 원형 차트 애니메이션 실행
-            animateProgressRing(achievementRate);
+        // 2. 미완료 문자열("14~19" 또는 "50,51,54")을 읽어서 정확한 미완료 페이지 '수'로 변환하는 똑똑한 함수
+        function calculateIncompletePages(incompleteStr) {
+            if (!incompleteStr) return 0;
+            let count = 0;
+            const parts = incompleteStr.toString().split(',');
+            
+            parts.forEach(part => {
+                const cleanPart = part.trim();
+                if (cleanPart.includes('~')) {
+                    const [start, end] = cleanPart.split('~').map(Number);
+                    if (!isNaN(start) && !isNaN(end) && end >= start) {
+                        count += (end - start + 1);
+                    }
+                } else if (cleanPart !== '' && !isNaN(Number(cleanPart))) {
+                    count += 1;
+                }
+            });
+            return count;
         }
 
-        // 3. 원형 차트 애니메이션 함수
-        function animateProgressRing(percent) {
-            const circle = document.getElementById('progressCircle');
-            const radius = circle.r.baseVal.value;
-            const circumference = radius * 2 * Math.PI;
+        // 3. 데이터를 가공해서 대시보드에 뿌려주는 메인 함수
+        function renderDashboard(targetStudent) {
+            // 학생 이름 셋팅
+            document.getElementById('headerName').innerText = targetStudent;
+
+            const studentData = sheetData.filter(row => row['이름'] === targetStudent);
             
-            circle.style.strokeDasharray = `${circumference} ${circumference}`;
-            circle.style.strokeDashoffset = circumference;
+            let totalPagesAll = 0;
+            let completedPagesAll = 0;
+            let lastComment = "코멘트가 없습니다.";
+            
+            // 데이터 그룹화 변수
+            const sessionData = {}; // 회차별 데이터
+            const textbookData = {}; // 교재별 데이터
 
-            // 달성률에 따른 색상 변화 (100%면 파란색, 낮으면 주황색/빨간색 등)
-            if (percent === 100) {
-                circle.classList.replace('text-blue-600', 'text-indigo-600');
-            } else if (percent < 50) {
-                circle.classList.replace('text-blue-600', 'text-red-500');
+            studentData.forEach(row => {
+                const start = parseInt(row['검사시작']) || 0;
+                const end = parseInt(row['검사끝']) || 0;
+                
+                // 해당 줄의 전체 페이지 수
+                let totalRowPages = 0;
+                if (end >= start && end > 0) {
+                    totalRowPages = (end - start) + 1;
+                }
+                
+                // 미완료 페이지 수 계산
+                const incompleteRowPages = calculateIncompletePages(row['미완료']);
+                const completedRowPages = Math.max(0, totalRowPages - incompleteRowPages);
+
+                // 전체 누적용 더하기
+                totalPagesAll += totalRowPages;
+                completedPagesAll += completedRowPages;
+
+                // 회차별 묶기
+                const session = row['회차'];
+                if (!sessionData[session]) sessionData[session] = { total: 0, completed: 0 };
+                sessionData[session].total += totalRowPages;
+                sessionData[session].completed += completedRowPages;
+
+                // 교재별 묶기
+                const textbook = row['교재명'];
+                if (textbook) {
+                    if (!textbookData[textbook]) textbookData[textbook] = { total: 0, completed: 0 };
+                    textbookData[textbook].total += totalRowPages;
+                    textbookData[textbook].completed += completedRowPages;
+                }
+
+                // 특이사항이 있으면 가장 최근(아래쪽) 것으로 덮어쓰기
+                if (row['특이사항'] && row['특이사항'].trim() !== '') {
+                    lastComment = row['특이사항'];
+                }
+            });
+
+            // --- 1. 상단 Total Rate 업데이트 ---
+            let totalRate = 0;
+            if (totalPagesAll > 0) {
+                totalRate = Math.round((completedPagesAll / totalPagesAll) * 100);
             }
+            document.getElementById('totalRate').innerText = totalRate;
+            document.getElementById('teacherComment').innerText = `"${lastComment}"`;
 
+            // --- 2. 왼쪽 '최근 과제 수행 추이' (회차별) 업데이트 ---
+            const sessionContainer = document.getElementById('sessionProgressContainer');
+            sessionContainer.innerHTML = ''; // 초기화
+            
+            // 회차 이름(1회차, 2회차...)으로 정렬
+            const sortedSessions = Object.keys(sessionData).sort();
+            
+            sortedSessions.forEach(session => {
+                const data = sessionData[session];
+                let percent = 0;
+                if(data.total > 0) {
+                    percent = Math.round((data.completed / data.total) * 100);
+                }
+
+                const html = `
+                    <div class="flex items-center gap-4">
+                        <span class="w-12 text-sm font-bold text-gray-600">${session}</span>
+                        <div class="flex-1 bg-gray-100 h-2.5 rounded-full overflow-hidden">
+                            <div class="bg-blue-500 h-full rounded-full progress-bar-fill" style="width: 0%" data-width="${percent}%"></div>
+                        </div>
+                        <span class="w-10 text-right text-sm font-black text-gray-800">${percent}%</span>
+                    </div>
+                `;
+                sessionContainer.insertAdjacentHTML('beforeend', html);
+            });
+
+            // --- 3. 오른쪽 '교재별 누적 학습 현황' 업데이트 (null 에러 해결 부분!) ---
+            const textbookContainer = document.getElementById('textbookContainer');
+            textbookContainer.innerHTML = ''; // 초기화
+
+            Object.keys(textbookData).forEach(bookName => {
+                const data = textbookData[bookName];
+                let percent = 0;
+                if(data.total > 0) {
+                    percent = Math.round((data.completed / data.total) * 100);
+                }
+
+                const html = `
+                    <div class="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+                        <h3 class="font-bold text-gray-800 mb-6 text-sm">${bookName}</h3>
+                        <div class="flex justify-between items-end mb-2">
+                            <span class="text-xs text-gray-400 font-medium">(총 ${data.total}p)</span>
+                            <span class="text-sm font-black text-blue-500">${percent}%</span>
+                        </div>
+                        <div class="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
+                            <div class="bg-blue-100 h-full rounded-full progress-bar-fill" style="width: 0%" data-width="${percent}%"></div>
+                        </div>
+                    </div>
+                `;
+                textbookContainer.insertAdjacentHTML('beforeend', html);
+            });
+
+            // 프로그래스 바 애니메이션 실행 (조금 지연을 주어 스무스하게 렌더링)
             setTimeout(() => {
-                const offset = circumference - (percent / 100) * circumference;
-                circle.style.strokeDashoffset = offset;
-            }, 100);
+                document.querySelectorAll('.progress-bar-fill').forEach(bar => {
+                    bar.style.width = bar.getAttribute('data-width');
+                    // %가 낮으면 파란색 대신 다른 색으로 처리하고 싶다면 이 아래에 로직 추가 가능
+                });
+            }, 50);
         }
 
-        // 페이지 로드 시 가상 데이터로 화면 그리기 실행
+        // 초기 실행: 드롭다운의 첫 번째 학생으로 렌더링
         window.onload = () => {
-            analyzeData(sheetData);
+            const selectElement = document.getElementById('studentSelect');
+            renderDashboard(selectElement.value);
+
+            // 드롭다운 변경 이벤트
+            selectElement.addEventListener('change', (e) => {
+                renderDashboard(e.target.value);
+            });
         };
     </script>
 </body>
