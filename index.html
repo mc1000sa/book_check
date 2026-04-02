@@ -10,26 +10,43 @@
     <style>
         body {
             font-family: 'Noto Sans KR', sans-serif;
-            background-color: #f4f5f7; /* 이전 대시보드 배경색과 유사하게 */
+            background-color: #f4f5f7; /* 원래 대시보드 배경색 복원 */
         }
         .header-bg {
             background-color: #111827; /* 다크 네이비 */
         }
-        /* 프로그래스 바 애니메이션 */
         .progress-bar-fill {
             transition: width 1s ease-out;
         }
+        /* 로딩 스피너 디자인 */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
-<body class="min-h-screen text-gray-800 p-6 max-w-7xl mx-auto">
+<body class="min-h-screen text-gray-800 p-6 max-w-7xl mx-auto relative">
 
-    <!-- 상단 컨트롤 바 (원래 있던 학생 선택 및 버튼들) -->
+    <!-- 데이터 로딩 중 화면 (앱스스크립트에서 데이터 가져올 때 표시) -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
+        <div class="loader mb-4"></div>
+        <p class="text-gray-600 font-bold">학생 데이터를 불러오는 중입니다...</p>
+    </div>
+
+    <!-- 상단 컨트롤 바 -->
     <div class="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm mb-6 border border-gray-100">
         <div class="flex items-center gap-2 w-1/3">
+            <!-- 자바스크립트가 시트 데이터를 읽어서 옵션을 알아서 꽉 채워줍니다 -->
             <select id="studentSelect" class="w-full bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 outline-none font-medium">
-                <option value="국한울">[고1_2. 서울대2반] 국한울</option>
-                <option value="고준화">[고1_2. 서울대2반] 고준화</option>
-                <option value="권희주">[고1_2. 서울대2반] 권희주</option>
+                <option value="">데이터를 불러오는 중...</option>
             </select>
         </div>
         <div class="flex gap-2">
@@ -47,26 +64,27 @@
 
     <!-- 메인 대시보드 헤더 -->
     <div class="header-bg rounded-3xl p-8 mb-8 text-white flex justify-between items-center shadow-lg relative overflow-hidden">
-        <!-- 배경 장식 (원래 UI의 부드러운 느낌 연출) -->
         <div class="absolute right-0 top-0 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2"></div>
         
         <div class="flex items-center gap-6 relative z-10">
+            <!-- ★ 선생님 요청: 실제 로고 이미지 삽입 공간 ★ -->
             <div class="flex items-center gap-2">
-                <!-- 로고 대체 아이콘 -->
-                <i data-lucide="book-open-check" class="w-8 h-8 text-blue-400"></i>
-                <span class="text-xl font-bold tracking-tight">열린학원</span>
+                <!-- 아래 src="여기에_이미지_주소_입력" 부분을 구글드라이브나 이미지 호스팅 주소로 바꾸시면 됩니다. -->
+                <img src="https://via.placeholder.com/150x50/111827/FFFFFF?text=Yeollin+Academy" alt="열린학원 로고" class="h-10 object-contain" id="academyLogo">
             </div>
+            
             <div class="h-10 w-px bg-gray-600"></div>
+            
             <div>
                 <div class="flex items-end gap-2 mb-1">
-                    <h1 class="text-3xl font-black" id="headerName">국한울</h1>
+                    <h1 class="text-3xl font-black" id="headerName">-</h1>
                     <span class="text-gray-300 font-medium mb-1">학생</span>
                 </div>
-                <p class="text-sm text-gray-400">고1_2. 서울대2반 | 교재점검 누적리포트</p>
+                <p class="text-sm text-gray-400">교재점검 누적리포트</p>
             </div>
         </div>
 
-        <!-- 토탈 달성률 (Total Rate) -->
+        <!-- 토탈 달성률 -->
         <div class="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 flex items-center gap-4 relative z-10">
             <div>
                 <p class="text-[10px] text-gray-300 font-bold tracking-widest uppercase mb-1">Total Rate</p>
@@ -81,12 +99,11 @@
         </div>
     </div>
 
-    <!-- 메인 컨텐츠 영역 (2단 레이아웃) -->
+    <!-- 메인 컨텐츠 영역 -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         <!-- 왼쪽 열: 최근 과제 수행 추이 & 코멘트 -->
         <div class="flex flex-col gap-6">
-            <!-- 최근 과제 수행 추이 -->
             <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
                 <div class="flex items-center gap-2 mb-6">
                     <i data-lucide="trending-up" class="w-5 h-5 text-gray-800"></i>
@@ -103,7 +120,7 @@
                     <i data-lucide="message-circle" class="w-3 h-3"></i> Teacher's Comment
                 </div>
                 <p id="teacherComment" class="text-sm text-gray-700 font-medium leading-relaxed">
-                    선생님 코멘트가 없습니다.
+                    로딩 중입니다...
                 </p>
             </div>
         </div>
@@ -124,37 +141,74 @@
     <script>
         lucide.createIcons();
 
-        // 1. 선생님의 구글 시트 이미지를 바탕으로 작성한 완벽한 가상 데이터
-        const sheetData = [
-            // 국한울 학생 데이터
-            { "이름": "국한울", "회차": "1회차", "검사시작": 6, "검사끝": 19, "미완료": "", "특이사항": "", "교재명": "RPM(공통수학1)" },
-            { "이름": "국한울", "회차": "1회차", "검사시작": 20, "검사끝": 31, "미완료": "", "특이사항": "", "교재명": "RPM(공통수학1)" },
-            { "이름": "국한울", "회차": "1회차", "검사시작": 32, "검사끝": 41, "미완료": "", "특이사항": "", "교재명": "RPM(공통수학1)" },
-            { "이름": "국한울", "회차": "2회차", "검사시작": 44, "검사끝": 54, "미완료": "", "특이사항": "BEST!! ★★★★ - 과제를 완벽하게 해오고, 오답문항도 고쳐옴", "교재명": "RPM(공통수학1)" },
-            { "이름": "국한울", "회차": "2회차", "검사시작": 56, "검사끝": 69, "미완료": "", "특이사항": "", "교재명": "RPM(공통수학1)" },
-            { "이름": "국한울", "회차": "3회차", "검사시작": 70, "검사끝": 75, "미완료": "", "특이사항": "", "교재명": "RPM(공통수학1)" },
-            { "이름": "국한울", "회차": "4회차", "검사시작": 76, "검사끝": 80, "미완료": "78, 79", "특이사항": "", "교재명": "RPM(공통수학1)" }, // 임의 추가 4회차
-            { "이름": "국한울", "회차": "1회차", "검사시작": 1, "검사끝": 19, "미완료": "", "특이사항": "", "교재명": "블랙라벨(공통수학1)" },
-            { "이름": "국한울", "회차": "2회차", "검사시작": 20, "검사끝": 26, "미완료": "26", "특이사항": "", "교재명": "블랙라벨(공통수학1)" },
-            { "이름": "국한울", "회차": "3회차", "검사시작": 28, "검사끝": 35, "미완료": "", "특이사항": "", "교재명": "블랙라벨(공통수학1)" },
-            { "이름": "국한울", "회차": "3회차", "검사시작": 39, "검사끝": 43, "미완료": "40~43", "특이사항": "", "교재명": "블랙라벨(공통수학1)" },
-            
-            // 고준화 학생 데이터 (비교용)
-            { "이름": "고준화", "회차": "1회차", "검사시작": 1, "검사끝": 19, "미완료": "14~19", "특이사항": "오답에 대한 정확한 표시와 다시 풀어보는 문제들을...", "교재명": "블랙라벨(공통수학1)" },
-            { "이름": "고준화", "회차": "2회차", "검사시작": 20, "검사끝": 26, "미완료": "21~26", "특이사항": "", "교재명": "블랙라벨(공통수학1)" },
-            { "이름": "고준화", "회차": "1회차", "검사시작": 6, "검사끝": 19, "미완료": "19", "특이사항": "", "교재명": "RPM(공통수학1)" }
-        ];
+        // 시트 전체 데이터를 저장할 전역 변수 (이제 예시 데이터 없음!)
+        let globalSheetData = [];
 
-        // 2. 미완료 문자열("14~19" 또는 "50,51,54")을 읽어서 정확한 미완료 페이지 '수'로 변환하는 똑똑한 함수
+        // 1. 페이지 로드 시 백엔드(Code.gs)에서 데이터 가져오기
+        window.onload = () => {
+            if (typeof google !== 'undefined' && google.script) {
+                // 실제 구글 서버 환경에서 작동
+                google.script.run
+                    .withSuccessHandler(onDataLoaded)
+                    .withFailureHandler(onError)
+                    .getDashboardData(); // Code.gs에 작성된 함수 호출
+            } else {
+                // 테스트 시 에러 방지용 메시지
+                document.getElementById('loadingOverlay').innerHTML = `<p class="text-red-500 font-bold">구글 앱스 스크립트 환경에서만 정상 작동합니다.</p>`;
+            }
+        };
+
+        // 2. 데이터 로드 성공 시 실행되는 함수
+        function onDataLoaded(data) {
+            globalSheetData = data;
+            
+            // 이름만 추출해서 중복 제거 (드롭다운 목록 만들기)
+            const uniqueStudents = [...new Set(data.map(row => row['이름']).filter(name => name))];
+            
+            const selectElement = document.getElementById('studentSelect');
+            selectElement.innerHTML = ''; // 기존 "로딩중" 지우기
+            
+            if (uniqueStudents.length === 0) {
+                selectElement.innerHTML = '<option value="">데이터가 없습니다</option>';
+            } else {
+                // 찾은 학생 이름들로 드롭다운 채우기
+                uniqueStudents.forEach(studentName => {
+                    const option = document.createElement('option');
+                    option.value = studentName;
+                    option.textContent = studentName;
+                    selectElement.appendChild(option);
+                });
+                
+                // 첫 번째 학생으로 대시보드 바로 그리기
+                renderDashboard(uniqueStudents[0]);
+            }
+            
+            // 드롭다운 변경 이벤트 등록
+            selectElement.addEventListener('change', (e) => {
+                renderDashboard(e.target.value);
+            });
+
+            // 로딩 화면 숨기기
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+
+        function onError(error) {
+            console.error('데이터 로드 실패:', error);
+            alert("데이터를 불러오는데 실패했습니다. Code.gs를 확인해주세요.");
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+
+        // 미완료 페이지 수 계산 ("14~19" 또는 "50,51,54" 처리)
         function calculateIncompletePages(incompleteStr) {
             if (!incompleteStr) return 0;
             let count = 0;
-            const parts = incompleteStr.toString().split(',');
+            const parts = String(incompleteStr).split(',');
             
             parts.forEach(part => {
                 const cleanPart = part.trim();
-                if (cleanPart.includes('~')) {
-                    const [start, end] = cleanPart.split('~').map(Number);
+                if (cleanPart.includes('~') || cleanPart.includes('-')) {
+                    const separator = cleanPart.includes('~') ? '~' : '-';
+                    const [start, end] = cleanPart.split(separator).map(Number);
                     if (!isNaN(start) && !isNaN(end) && end >= start) {
                         count += (end - start + 1);
                     }
@@ -165,46 +219,45 @@
             return count;
         }
 
-        // 3. 데이터를 가공해서 대시보드에 뿌려주는 메인 함수
+        // 3. 선택된 학생의 데이터를 계산해서 화면에 뿌려주는 메인 함수
         function renderDashboard(targetStudent) {
-            // 학생 이름 셋팅
+            if (!targetStudent) return;
+            
             document.getElementById('headerName').innerText = targetStudent;
-
-            const studentData = sheetData.filter(row => row['이름'] === targetStudent);
+            const studentData = globalSheetData.filter(row => row['이름'] === targetStudent);
             
             let totalPagesAll = 0;
             let completedPagesAll = 0;
-            let lastComment = "코멘트가 없습니다.";
+            let lastComment = "작성된 선생님 코멘트가 없습니다.";
             
-            // 데이터 그룹화 변수
-            const sessionData = {}; // 회차별 데이터
-            const textbookData = {}; // 교재별 데이터
+            const sessionData = {}; // 회차별
+            const textbookData = {}; // 교재별
 
             studentData.forEach(row => {
+                // ★ 여기서 시트 헤더 이름을 찾습니다. (선생님 시트: '검사시작', '검사끝', '미완료', '회차', '교재명')
                 const start = parseInt(row['검사시작']) || 0;
                 const end = parseInt(row['검사끝']) || 0;
                 
-                // 해당 줄의 전체 페이지 수
                 let totalRowPages = 0;
                 if (end >= start && end > 0) {
                     totalRowPages = (end - start) + 1;
                 }
                 
-                // 미완료 페이지 수 계산
                 const incompleteRowPages = calculateIncompletePages(row['미완료']);
                 const completedRowPages = Math.max(0, totalRowPages - incompleteRowPages);
 
-                // 전체 누적용 더하기
                 totalPagesAll += totalRowPages;
                 completedPagesAll += completedRowPages;
 
-                // 회차별 묶기
+                // 회차별 계산
                 const session = row['회차'];
-                if (!sessionData[session]) sessionData[session] = { total: 0, completed: 0 };
-                sessionData[session].total += totalRowPages;
-                sessionData[session].completed += completedRowPages;
+                if (session) {
+                    if (!sessionData[session]) sessionData[session] = { total: 0, completed: 0 };
+                    sessionData[session].total += totalRowPages;
+                    sessionData[session].completed += completedRowPages;
+                }
 
-                // 교재별 묶기
+                // 교재별 계산
                 const textbook = row['교재명'];
                 if (textbook) {
                     if (!textbookData[textbook]) textbookData[textbook] = { total: 0, completed: 0 };
@@ -212,13 +265,13 @@
                     textbookData[textbook].completed += completedRowPages;
                 }
 
-                // 특이사항이 있으면 가장 최근(아래쪽) 것으로 덮어쓰기
-                if (row['특이사항'] && row['특이사항'].trim() !== '') {
+                // 가장 마지막 코멘트 가져오기
+                if (row['특이사항'] && String(row['특이사항']).trim() !== '') {
                     lastComment = row['특이사항'];
                 }
             });
 
-            // --- 1. 상단 Total Rate 업데이트 ---
+            // 상단 Total Rate
             let totalRate = 0;
             if (totalPagesAll > 0) {
                 totalRate = Math.round((completedPagesAll / totalPagesAll) * 100);
@@ -226,19 +279,19 @@
             document.getElementById('totalRate').innerText = totalRate;
             document.getElementById('teacherComment').innerText = `"${lastComment}"`;
 
-            // --- 2. 왼쪽 '최근 과제 수행 추이' (회차별) 업데이트 ---
+            // 왼쪽: 최근 과제 수행 추이 렌더링
             const sessionContainer = document.getElementById('sessionProgressContainer');
-            sessionContainer.innerHTML = ''; // 초기화
+            sessionContainer.innerHTML = '';
             
-            // 회차 이름(1회차, 2회차...)으로 정렬
             const sortedSessions = Object.keys(sessionData).sort();
             
+            if(sortedSessions.length === 0) {
+                sessionContainer.innerHTML = '<p class="text-sm text-gray-500">수행 내역이 없습니다.</p>';
+            }
+
             sortedSessions.forEach(session => {
                 const data = sessionData[session];
-                let percent = 0;
-                if(data.total > 0) {
-                    percent = Math.round((data.completed / data.total) * 100);
-                }
+                let percent = data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0;
 
                 const html = `
                     <div class="flex items-center gap-4">
@@ -252,20 +305,21 @@
                 sessionContainer.insertAdjacentHTML('beforeend', html);
             });
 
-            // --- 3. 오른쪽 '교재별 누적 학습 현황' 업데이트 (null 에러 해결 부분!) ---
+            // 오른쪽: 교재별 누적 학습 현황 렌더링
             const textbookContainer = document.getElementById('textbookContainer');
-            textbookContainer.innerHTML = ''; // 초기화
+            textbookContainer.innerHTML = '';
+
+            if(Object.keys(textbookData).length === 0) {
+                textbookContainer.innerHTML = '<p class="text-sm text-gray-500 p-4">교재 데이터가 없습니다.</p>';
+            }
 
             Object.keys(textbookData).forEach(bookName => {
                 const data = textbookData[bookName];
-                let percent = 0;
-                if(data.total > 0) {
-                    percent = Math.round((data.completed / data.total) * 100);
-                }
+                let percent = data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0;
 
                 const html = `
                     <div class="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-                        <h3 class="font-bold text-gray-800 mb-6 text-sm">${bookName}</h3>
+                        <h3 class="font-bold text-gray-800 mb-6 text-sm truncate">${bookName}</h3>
                         <div class="flex justify-between items-end mb-2">
                             <span class="text-xs text-gray-400 font-medium">(총 ${data.total}p)</span>
                             <span class="text-sm font-black text-blue-500">${percent}%</span>
@@ -278,25 +332,13 @@
                 textbookContainer.insertAdjacentHTML('beforeend', html);
             });
 
-            // 프로그래스 바 애니메이션 실행 (조금 지연을 주어 스무스하게 렌더링)
+            // 애니메이션 부드럽게 실행
             setTimeout(() => {
                 document.querySelectorAll('.progress-bar-fill').forEach(bar => {
                     bar.style.width = bar.getAttribute('data-width');
-                    // %가 낮으면 파란색 대신 다른 색으로 처리하고 싶다면 이 아래에 로직 추가 가능
                 });
             }, 50);
         }
-
-        // 초기 실행: 드롭다운의 첫 번째 학생으로 렌더링
-        window.onload = () => {
-            const selectElement = document.getElementById('studentSelect');
-            renderDashboard(selectElement.value);
-
-            // 드롭다운 변경 이벤트
-            selectElement.addEventListener('change', (e) => {
-                renderDashboard(e.target.value);
-            });
-        };
     </script>
 </body>
 </html>
