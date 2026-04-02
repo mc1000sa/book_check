@@ -35,9 +35,8 @@
               setLoading(false);
               return;
             }
-            if (!data.students) {
-              // ⭐ 디버그용: 서버가 도대체 뭐라고 보냈는지 팝업에 그대로 띄워줍니다!
-              alert("🚨 학생 목록을 불러오지 못했습니다.\n\n[서버가 보낸 응답]:\n" + JSON.stringify(data).substring(0, 200) + "\n\n(위 내용을 문채 쌤의 AI 비서에게 알려주세요!)");
+            if (!data.students || data.students.length === 0) {
+              alert("🚨 학생 목록을 불러오지 못했습니다.\n\n[해결 방법]\n구글 시트 '학생DB'의 첫 줄(헤더)이 정확한지 확인해주세요.\n❌ 학생이름 -> ⭕ 이름\n❌ 학부모연락처 -> ⭕ 연락처\n\n(위 단어와 100% 똑같이 띄어쓰기 없이 적혀있어야 합니다!)");
               setLoading(false);
               return;
             }
@@ -207,8 +206,17 @@
                             <>
                               <div>
                                 <label className="text-xs font-bold text-slate-500 block mb-1">회차</label>
-                                <input type="text" placeholder="예: 3회차" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm font-bold"
-                                  value={d.session} onChange={(e) => handleInputChange(bookName, 'session', e.target.value)} />
+                                {/* ⭐ 타자 입력칸을 드롭다운(select)으로 완벽 교체했습니다! */}
+                                <select 
+                                  className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+                                  value={d.session} 
+                                  onChange={(e) => handleInputChange(bookName, 'session', e.target.value)}
+                                >
+                                  <option value="">회차를 선택하세요 (필수)</option>
+                                  {[...Array(20)].map((_, i) => (
+                                    <option key={i} value={`${i + 1}회차`}>{i + 1}회차</option>
+                                  ))}
+                                </select>
                               </div>
                               <div className="flex gap-2">
                                 <div className="flex-1">
