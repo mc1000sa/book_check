@@ -43,17 +43,17 @@
             .no-print { display: none !important; }
             body { background-color: white !important; padding: 0 !important; margin: 0 !important; overflow: hidden !important; }
             #reportArea { 
-                max-width: 100% !important; 
+                max-width: none !important;
                 width: 297mm !important; 
-                min-height: 210mm !important;
-                padding: 8mm !important; 
-                margin: 0 auto !important;
-                transform: scale(0.88); /* 전체 내용이 한 장에 쏙 들어오도록 배율 조정 */
-                transform-origin: top center;
+                height: 210mm !important;
+                padding: 10mm !important; 
+                margin: 0 !important;
+                transform: scale(0.82); /* 한 장에 쏙 들어오도록 배율 하향 조정 */
+                transform-origin: top left;
+                box-sizing: border-box;
             }
             .header-bg { border-radius: 1rem !important; }
             .shadow-xl, .shadow-2xl { box-shadow: none !important; border: 1px solid #e5e7eb !important; }
-            /* 내부 요소 간격 조정 */
             .grid { gap: 1rem !important; }
         }
     </style>
@@ -84,7 +84,7 @@
         </div>
     </div>
 
-    <!-- 리포트 본문 영역 (이미지 캡처 및 인쇄 대상) -->
+    <!-- 리포트 본문 영역 -->
     <div id="reportArea">
         <!-- 메인 헤더 -->
         <div class="header-bg rounded-[2rem] p-8 mb-8 text-white flex flex-col md:flex-row justify-between items-center shadow-2xl relative overflow-hidden">
@@ -214,13 +214,14 @@
             globalSheetData = data;
             
             // 모든 학생 정보를 수집 (이름별로 반 정보를 정확하게 매핑)
+            // 문채 선생님의 시트 캡처본 기준 '과정' 컬럼이 반 정보입니다.
             const studentMap = new Map();
             data.forEach(r => {
                 if(r['이름']) {
                     const name = r['이름'].trim();
-                    // 해당 이름에 대해 유효한 반 정보가 아직 없으면 저장
-                    if (!studentMap.has(name) || (studentMap.get(name) === "미지정" && r['반'])) {
-                        const classInfo = r['반'] || r['과정'] || "미지정";
+                    // '과정' 또는 '반' 컬럼에서 정보 추출
+                    const classInfo = r['과정'] || r['반'] || "미지정";
+                    if (!studentMap.has(name) || (studentMap.get(name) === "미지정" && classInfo !== "미지정")) {
                         studentMap.set(name, classInfo);
                     }
                 }
@@ -229,7 +230,6 @@
             const sel = document.getElementById('studentSelect');
             sel.innerHTML = '';
             
-            // 학생 이름 가나다 순 정렬하여 드롭다운 생성
             const sortedNames = Array.from(studentMap.keys()).sort();
             
             sortedNames.forEach(name => {
@@ -273,9 +273,9 @@
             const sData = globalSheetData.filter(r => r['이름'] === name);
             document.getElementById('headerName').innerText = name;
             
-            // 선택된 학생의 데이터 중 가장 첫 번째 유효한 '반' 정보 찾기
-            const firstValidRow = sData.find(r => r['반'] || r['과정']);
-            const currentClass = firstValidRow ? (firstValidRow['반'] || firstValidRow['과정']) : "고등부";
+            // 선택된 학생의 데이터 중 '과정' 또는 '반' 정보 찾기
+            const firstValidRow = sData.find(r => r['과정'] || r['반']);
+            const currentClass = firstValidRow ? (firstValidRow['과정'] || firstValidRow['반']) : "고등부";
             document.getElementById('classInfo').innerText = `${currentClass} | 교재점검 누적리포트`;
 
             let totalP = 0, totalD = 0, lastC = "전달할 코멘트가 없습니다.";
@@ -306,8 +306,11 @@
                 bookMap[book].t += rowTotal;
                 bookMap[book].d += rowDone;
                 
+                // 단원명 인식: '대단원', '소단원', '단원명' 순서로 확인
+                const unitName = row['대단원'] || row['단원명'] || row['소단원'] || "분석 단원";
+                
                 bookMap[book].details.push({
-                    unit: row['단원명'] || row['대단원'] || row['단원'] || "교재 점검",
+                    unit: unitName,
                     sess: sess,
                     start, end, rowTotal,
                     incText: inc.text,
