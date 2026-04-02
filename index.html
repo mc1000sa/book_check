@@ -34,37 +34,31 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* 인쇄 최적화: 가로 1장 출력 설정 */
+        /* 인쇄 최적화: 가로 1장 출력 강제 설정 */
         @media print {
             @page {
                 size: A4 landscape;
-                margin: 5mm;
+                margin: 0; /* 여백 최소화 */
             }
             .no-print { display: none !important; }
-            body { background-color: white; padding: 0; margin: 0; }
+            body { background-color: white; padding: 0; margin: 0; overflow: hidden; }
             #reportArea { 
                 max-width: 100% !important; 
-                width: 100% !important; 
+                width: 297mm !important; /* A4 가로 너비 */
+                height: 210mm !important; /* A4 가로 높이 */
                 padding: 10mm !important; 
                 margin: 0 !important;
-                transform: scale(0.95); /* 전체 내용이 한 장에 들어오도록 미세 조정 */
+                transform: scale(0.92); /* 한 장에 쏙 들어오도록 전체 비율 조정 */
                 transform-origin: top center;
             }
-            .header-bg { border-radius: 1rem !important; }
-            .grid { 
-                display: grid !important; 
-                grid-template-cols: repeat(12, minmax(0, 1fr)) !important; 
-                gap: 15px !important; 
-            }
-            .lg\:col-span-4 { grid-column: span 4 / span 4 !important; }
-            .lg\:col-span-8 { grid-column: span 8 / span 8 !important; }
-            .md\:grid-cols-2 { grid-template-cols: repeat(2, minmax(0, 1fr)) !important; }
             .rounded-\[2rem\] { border-radius: 1rem !important; }
             .shadow-xl, .shadow-2xl { box-shadow: none !important; border: 1px solid #e5e7eb !important; }
+            /* 단원 리스트가 길어질 경우 대비 */
+            #textbookContainer > div { break-inside: avoid; }
         }
     </style>
 </head>
-<body class="min-h-screen text-gray-800 p-4 md:p-6 max-w-7xl mx-auto relative" id="reportArea">
+<body class="min-h-screen text-gray-800 p-4 md:p-6 max-w-7xl mx-auto relative">
 
     <!-- 로딩 화면 -->
     <div id="loadingOverlay" class="fixed inset-0 bg-white/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center no-print text-center">
@@ -82,7 +76,7 @@
         </div>
         <div class="flex gap-2 w-full md:w-auto">
             <button onclick="window.print()" class="flex-1 md:flex-none flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all active:scale-95 shadow-lg shadow-indigo-200">
-                <i data-lucide="printer" class="w-4 h-4"></i> 출력 (가로 1장)
+                <i data-lucide="printer" class="w-4 h-4"></i> 출력
             </button>
             <button onclick="copyToClipboard()" class="flex-1 md:flex-none flex items-center justify-center gap-2 border-2 border-blue-500 text-blue-600 hover:bg-blue-50 px-5 py-2.5 rounded-xl text-sm font-bold transition-all bg-white active:scale-95">
                 <i data-lucide="link" class="w-4 h-4"></i> 링크 복사
@@ -93,89 +87,93 @@
         </div>
     </div>
 
-    <!-- 메인 대시보드 헤더 -->
-    <div class="header-bg rounded-[2rem] p-8 mb-8 text-white flex flex-col md:flex-row justify-between items-center shadow-2xl relative overflow-hidden">
-        <div class="absolute right-0 top-0 w-80 h-80 bg-blue-500 opacity-10 rounded-full blur-3xl transform translate-x-1/3 -translate-y-1/3"></div>
-        
-        <div class="flex items-center gap-6 relative z-10">
-            <div class="bg-white/10 p-3 rounded-2xl backdrop-blur-md border border-white/10 shadow-inner">
-                <img src="열린학원로고(누끼).png" alt="열린학원 로고" class="h-12 object-contain" onerror="this.src='https://via.placeholder.com/150x50/111827/FFFFFF?text=Yeollin+Academy'">
-            </div>
-            <div class="h-12 w-px bg-gray-700 hidden md:block"></div>
-            <div>
-                <div class="flex items-baseline gap-2 mb-1">
-                    <h1 class="text-4xl font-black tracking-tight" id="headerName">-</h1>
-                    <span class="text-blue-300 font-bold text-lg">학생</span>
-                </div>
-                <p class="text-sm text-gray-400 font-medium tracking-wide" id="classInfo">교재점검 누적리포트</p>
-            </div>
-        </div>
-
-        <!-- TOTAL RATE 배지 -->
-        <div class="mt-6 md:mt-0 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-5 flex items-center gap-5 relative z-10 shadow-2xl">
-            <div class="text-center">
-                <p class="text-[10px] text-gray-400 font-black tracking-[0.2em] uppercase mb-1">TOTAL PERFORMANCE</p>
-                <div class="flex items-baseline justify-center gap-1">
-                    <span class="text-4xl font-black text-white" id="totalRate">0</span>
-                    <span class="text-xl font-bold text-gray-500">%</span>
-                </div>
-            </div>
-            <div id="totalRateContainer" class="w-14 h-14 rounded-full flex items-center justify-center shadow-2xl text-white transition-all duration-700 transform hover:scale-110">
-                <i data-lucide="check" class="w-7 h-7 stroke-[4]"></i>
-            </div>
-        </div>
-    </div>
-
-    <!-- 컨텐츠 영역 -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        <!-- 왼쪽 (4/12): 추이 및 코멘트 -->
-        <div class="lg:col-span-4 flex flex-col gap-8">
-            <div>
-                <div class="flex items-center justify-between mb-4 px-2">
-                    <div class="flex items-center gap-2">
-                        <i data-lucide="bar-chart-3" class="w-5 h-5 text-indigo-600"></i>
-                        <h2 class="text-xl font-black text-gray-800 tracking-tight">과제 수행 추이</h2>
-                    </div>
-                </div>
-                <div class="bg-white rounded-[2rem] p-7 shadow-xl shadow-gray-200/50 border border-gray-100 min-h-[300px]">
-                    <div class="space-y-7" id="sessionProgressContainer">
-                        <!-- JS로 회차별 막대 생성 -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- 선생님 코멘트 -->
-            <div class="bg-white rounded-[2rem] p-8 shadow-xl shadow-indigo-100/50 border-t-4 border-indigo-500 relative mt-4 overflow-hidden">
-                <div class="absolute -right-4 -top-4 opacity-5">
-                    <i data-lucide="quote" class="w-24 h-24 text-indigo-900"></i>
-                </div>
-                <h3 class="text-xs font-black text-indigo-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <i data-lucide="message-square" class="w-4 h-4"></i> Teacher's Feedback
-                </h3>
-                <p id="teacherComment" class="text-[15px] text-gray-700 font-bold leading-relaxed whitespace-pre-wrap italic">
-                    로딩 중...
-                </p>
-            </div>
-        </div>
-
-        <!-- 오른쪽 (8/12): 교재별 상세 현황 -->
-        <div class="lg:col-span-8">
-            <div class="flex items-center gap-2 mb-4 px-2">
-                <i data-lucide="layers" class="w-5 h-5 text-blue-600"></i>
-                <h2 class="text-xl font-black text-gray-800 tracking-tight">교재별 누적 학습 현황</h2>
-            </div>
+    <!-- 캡처 및 인쇄 대상 영역 시작 -->
+    <div id="reportArea">
+        <!-- 메인 대시보드 헤더 -->
+        <div class="header-bg rounded-[2rem] p-8 mb-8 text-white flex flex-col md:flex-row justify-between items-center shadow-2xl relative overflow-hidden">
+            <div class="absolute right-0 top-0 w-80 h-80 bg-blue-500 opacity-10 rounded-full blur-3xl transform translate-x-1/3 -translate-y-1/3"></div>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="textbookContainer">
-                <!-- 교재별 카드가 여기에 들어갑니다 -->
+            <div class="flex items-center gap-6 relative z-10">
+                <div class="bg-white/10 p-3 rounded-2xl backdrop-blur-md border border-white/10 shadow-inner">
+                    <img src="열린학원로고(누끼).png" alt="열린학원 로고" class="h-12 object-contain" onerror="this.src='https://via.placeholder.com/150x50/111827/FFFFFF?text=Yeollin+Academy'">
+                </div>
+                <div class="h-12 w-px bg-gray-700 hidden md:block"></div>
+                <div>
+                    <div class="flex items-baseline gap-2 mb-1">
+                        <h1 class="text-4xl font-black tracking-tight" id="headerName">-</h1>
+                        <span class="text-blue-300 font-bold text-lg">학생</span>
+                    </div>
+                    <p class="text-sm text-gray-400 font-medium tracking-wide" id="classInfo">교재점검 누적리포트</p>
+                </div>
+            </div>
+
+            <!-- TOTAL RATE 배지 -->
+            <div class="mt-6 md:mt-0 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-5 flex items-center gap-5 relative z-10 shadow-2xl">
+                <div class="text-center">
+                    <p class="text-[10px] text-gray-400 font-black tracking-[0.2em] uppercase mb-1">TOTAL PERFORMANCE</p>
+                    <div class="flex items-baseline justify-center gap-1">
+                        <span class="text-4xl font-black text-white" id="totalRate">0</span>
+                        <span class="text-xl font-bold text-gray-500">%</span>
+                    </div>
+                </div>
+                <div id="totalRateContainer" class="w-14 h-14 rounded-full flex items-center justify-center shadow-2xl text-white transition-all duration-700 transform hover:scale-110">
+                    <i data-lucide="check" class="w-7 h-7 stroke-[4]"></i>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- 하단 워터마크 -->
-    <div class="mt-12 pt-8 border-t border-gray-200 text-center opacity-30 no-print">
-        <p class="text-[10px] text-gray-500 font-black tracking-[0.3em] uppercase">Moonsan Yeollin Math Premium Smart Report</p>
+        <!-- 컨텐츠 영역 -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <!-- 왼쪽 (4/12): 추이 및 코멘트 -->
+            <div class="lg:col-span-4 flex flex-col gap-8">
+                <div>
+                    <div class="flex items-center justify-between mb-4 px-2">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="bar-chart-3" class="w-5 h-5 text-indigo-600"></i>
+                            <h2 class="text-xl font-black text-gray-800 tracking-tight">과제 수행 추이</h2>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-[2rem] p-7 shadow-xl shadow-gray-200/50 border border-gray-100 min-h-[300px]">
+                        <div class="space-y-7" id="sessionProgressContainer">
+                            <!-- JS로 회차별 막대 생성 -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 선생님 코멘트 -->
+                <div class="bg-white rounded-[2rem] p-8 shadow-xl shadow-indigo-100/50 border-t-4 border-indigo-500 relative mt-4 overflow-hidden">
+                    <div class="absolute -right-4 -top-4 opacity-5">
+                        <i data-lucide="quote" class="w-24 h-24 text-indigo-900"></i>
+                    </div>
+                    <h3 class="text-xs font-black text-indigo-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <i data-lucide="message-square" class="w-4 h-4"></i> Teacher's Feedback
+                    </h3>
+                    <p id="teacherComment" class="text-[15px] text-gray-700 font-bold leading-relaxed whitespace-pre-wrap italic">
+                        로딩 중...
+                    </p>
+                </div>
+            </div>
+
+            <!-- 오른쪽 (8/12): 교재별 상세 현황 -->
+            <div class="lg:col-span-8">
+                <div class="flex items-center gap-2 mb-4 px-2">
+                    <i data-lucide="layers" class="w-5 h-5 text-blue-600"></i>
+                    <h2 class="text-xl font-black text-gray-800 tracking-tight">교재별 누적 학습 현황</h2>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="textbookContainer">
+                    <!-- 교재별 카드가 여기에 들어갑니다 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 하단 워터마크 -->
+        <div class="mt-12 pt-8 border-t border-gray-200 text-center opacity-30">
+            <p class="text-[10px] text-gray-500 font-black tracking-[0.3em] uppercase">Moonsan Yeollin Math Premium Smart Report</p>
+        </div>
     </div>
+    <!-- 캡처 및 인쇄 대상 영역 끝 -->
 
     <script>
         lucide.createIcons();
@@ -204,14 +202,18 @@
         }
 
         function saveAsImage() {
-            const overlay = document.querySelector('.no-print');
-            overlay.style.visibility = 'hidden';
-            html2canvas(document.body, { scale: 2, useCORS: true }).then(canvas => {
+            // 이미지 저장 시에는 리포트 영역(#reportArea)만 캡처하여 상단 바 제외
+            const captureTarget = document.getElementById('reportArea');
+            
+            html2canvas(captureTarget, { 
+                scale: 2, 
+                useCORS: true,
+                backgroundColor: '#f4f5f7'
+            }).then(canvas => {
                 const link = document.createElement('a');
                 link.download = `[열린학원]_` + document.getElementById('headerName').innerText + "_누적리포트.png";
                 link.href = canvas.toDataURL("image/png");
                 link.click();
-                overlay.style.visibility = 'visible';
             });
         }
 
@@ -228,35 +230,34 @@
         function onDataLoaded(data) {
             globalSheetData = data;
             
-            // 학생 이름과 반 정보를 함께 추출
-            const students = [];
-            const studentSet = new Set();
-            
+            // 모든 학생 정보를 수집 (이름별로 반 정보를 매핑)
+            const studentMap = new Map();
             data.forEach(r => {
-                if(r['이름'] && !studentSet.has(r['이름'])) {
-                    studentSet.add(r['이름']);
-                    // '반' 또는 '과정' 컬럼이 있으면 사용, 없으면 고정된 기본값 사용
+                if(r['이름'] && !studentMap.has(r['이름'])) {
+                    // 해당 행의 '반' 또는 '과정' 정보를 저장
                     const classInfo = r['반'] || r['과정'] || "고1_2. 서울대2반";
-                    students.push({ name: r['이름'], class: classInfo });
+                    studentMap.set(r['이름'], classInfo);
                 }
             });
 
             const sel = document.getElementById('studentSelect');
             sel.innerHTML = '';
             
-            students.forEach(s => {
+            // 학생 맵을 순회하며 드롭다운 옵션 생성
+            studentMap.forEach((classInfo, name) => {
                 const opt = document.createElement('option');
-                opt.value = s.name;
-                opt.dataset.class = s.class;
-                opt.textContent = `[${s.class}] ${s.name} 학생`;
+                opt.value = name;
+                opt.textContent = `[${classInfo}] ${name} 학생`;
                 sel.appendChild(opt);
             });
             
-            if(students.length > 0) renderDashboard(students[0].name);
+            if(studentMap.size > 0) {
+                const firstStudent = studentMap.keys().next().value;
+                renderDashboard(firstStudent);
+            }
             
             sel.addEventListener('change', e => {
-                const selectedOpt = e.target.options[e.target.selectedIndex];
-                renderDashboard(e.target.value, selectedOpt.dataset.class);
+                renderDashboard(e.target.value);
             });
             
             document.getElementById('loadingOverlay').style.opacity = '0';
@@ -280,18 +281,18 @@
             return { count, text: str };
         }
 
-        function renderDashboard(name, classInfo) {
+        function renderDashboard(name) {
             const sData = globalSheetData.filter(r => r['이름'] === name);
             document.getElementById('headerName').innerText = name;
             
-            // 반 정보 업데이트 (선택된 데이터에서 추출하거나 전달된 값 사용)
-            const currentClass = classInfo || sData[0]['반'] || sData[0]['과정'] || "고1_2. 서울대2반";
+            // 선택된 학생의 데이터에서 '반' 정보 가져오기
+            const currentClass = sData[0]['반'] || sData[0]['과정'] || "고1_2. 서울대2반";
             document.getElementById('classInfo').innerText = `${currentClass} | 교재점검 누적리포트`;
 
             let totalP = 0, totalD = 0, lastC = "전달할 코멘트가 없습니다.";
             const sessionMap = {}, bookMap = {}, sessionColorMap = {};
 
-            // 1. 회차별 색상 고정
+            // 1. 회차별 색상 고정 (데이터 순서대로)
             const sessionsFound = [...new Set(sData.map(r => r['회차'] || '기타'))].sort();
             sessionsFound.forEach((s, i) => {
                 sessionColorMap[s] = colorPalette[i % colorPalette.length];
@@ -385,7 +386,6 @@
                                 <span class="text-sm font-black ${item.percent >= 90 ? 'text-blue-600' : 'text-rose-500'}">${item.percent}%</span>
                             </div>
                         </div>
-                        <!-- 단원별 수행률 바 - 회차 색상에 맞춤 -->
                         <div class="w-full ${item.color.track} h-2 rounded-full overflow-hidden mb-1">
                             <div class="${item.color.bg} h-full rounded-full progress-bar-fill" style="width: 0%" data-width="${item.percent}%"></div>
                         </div>
