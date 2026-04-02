@@ -37,7 +37,7 @@
     <!-- 데이터 로딩 중 화면 -->
     <div id="loadingOverlay" class="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
         <div class="loader mb-4"></div>
-        <p class="text-gray-600 font-bold" id="loadingText">학생 데이터를 불러오는 중입니다...</p>
+        <p class="text-gray-600 font-bold">학생 데이터를 불러오는 중입니다...</p>
     </div>
 
     <!-- 상단 컨트롤 바 -->
@@ -65,14 +65,9 @@
         <div class="absolute right-0 top-0 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2"></div>
         
         <div class="flex items-center gap-6 relative z-10">
-            <!-- 깨지지 않는 자체 제작 열린학원 로고 (이미지 링크 불필요) -->
+            <!-- 깃허브 폴더에 업로드된 로고 이미지 연결 -->
             <div class="flex items-center gap-2 text-white">
-                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-400">
-                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
-                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
-                    <path d="m9 10 2 2 4-4"></path>
-                </svg>
-                <span class="text-2xl font-black tracking-tight" style="font-family: 'Noto Sans KR', sans-serif;">열린학원</span>
+                <img src="열린학원로고(누끼).png" alt="열린학원 로고" class="h-10 object-contain" onerror="this.src='https://via.placeholder.com/150x50/111827/FFFFFF?text=Yeollin+Academy'">
             </div>
             
             <div class="h-10 w-px bg-gray-600"></div>
@@ -122,7 +117,7 @@
                     <i data-lucide="message-circle" class="w-3 h-3"></i> Teacher's Comment
                 </div>
                 <p id="teacherComment" class="text-sm text-gray-700 font-medium leading-relaxed">
-                    로딩 중입니다...
+                    불러오는 중입니다...
                 </p>
             </div>
         </div>
@@ -142,43 +137,33 @@
 
     <script>
         lucide.createIcons();
-
         let globalSheetData = [];
 
-        // 우측 미리보기용 임시 데이터 (선생님 시트 사진과 똑같이 구성했습니다)
-        const mockDataForPreview = [
-            { "이름": "고준화", "회차": "1회차", "검사시작": 1, "검사끝": 19, "미완료": "14~19", "특이사항": "오답에 대한 정확한 표시와 다시 풀어보는 문제들을...", "교재명": "블랙라벨(공통수학1)" },
-            { "이름": "고준화", "회차": "2회차", "검사시작": 20, "검사끝": 26, "미완료": "21~26", "특이사항": "", "교재명": "블랙라벨(공통수학1)" },
-            { "이름": "고준화", "회차": "1회차", "검사시작": 6, "검사끝": 19, "미완료": "19", "특이사항": "교재 점검이 있을시 푼데까지는 채점을...", "교재명": "RPM(공통수학1)" },
-            { "이름": "고준화", "회차": "2회차", "검사시작": 44, "검사끝": 54, "미완료": "50,51,54", "특이사항": "", "교재명": "RPM(공통수학1)" },
-            { "이름": "국한울", "회차": "1회차", "검사시작": 1, "검사끝": 19, "미완료": "", "특이사항": "BEST!! ★★★★★ - 채점, 오답복습, 식세우는 습관 등등 모든게 완벽함", "교재명": "블랙라벨(공통수학1)" },
-            { "이름": "국한울", "회차": "2회차", "검사시작": 20, "검사끝": 26, "미완료": "26", "특이사항": "", "교재명": "블랙라벨(공통수학1)" },
-            { "이름": "국한울", "회차": "1회차", "검사시작": 6, "검사끝": 19, "미완료": "", "특이사항": "", "교재명": "RPM(공통수학1)" },
-            { "이름": "국한울", "회차": "2회차", "검사시작": 44, "검사끝": 54, "미완료": "", "특이사항": "BEST!! ★★★★ - 과제를 완벽하게 해오고, 오답문항도 고쳐옴", "교재명": "RPM(공통수학1)" },
-            { "이름": "권희주", "회차": "1회차", "검사시작": 1, "검사끝": 19, "미완료": "15~19", "특이사항": "풀이를 이면지에 풀었는데 가지고 오지 않아서 풀이 확인을 못함.", "교재명": "블랙라벨(공통수학1)" },
-            { "이름": "권희주", "회차": "2회차", "검사시작": 44, "검사끝": 54, "미완료": "49~54", "특이사항": "이번 회차에 과제를 거의 못해옴. 개인상담 진행함", "교재명": "RPM(공통수학1)" }
-        ];
+        // ★★★ [매우 중요] 앱스 스크립트 배포 후 얻은 웹앱 URL을 아래 따옴표 안에 붙여넣으세요! ★★★
+        const GAS_URL = "여기에_구글_스크립트_웹앱_URL을_붙여넣으세요";
 
         window.onload = () => {
-            // 구글 앱스 스크립트 환경(실제 배포)인지 확인
-            if (typeof google !== 'undefined' && google.script) {
-                google.script.run
-                    .withSuccessHandler(onDataLoaded)
-                    .withFailureHandler(onError)
-                    .getDashboardData(); // 백엔드 데이터 호출
-            } else {
-                // 우측 Preview 캔버스 환경 (에러 띄우지 않고 임시 데이터 보여줌)
-                console.log("미리보기 환경: 시트 데이터 대신 임시 데이터를 렌더링합니다.");
-                setTimeout(() => {
-                    onDataLoaded(mockDataForPreview);
-                }, 500); // 로딩 효과 살짝 주기
+            // URL이 제대로 안 들어갔을 경우 안내
+            if (GAS_URL.includes("여기에_구글_스크립트_웹앱_URL")) {
+                document.getElementById('loadingOverlay').innerHTML = `
+                    <div class="bg-white p-6 rounded-xl shadow-lg text-center">
+                        <p class="text-red-500 font-bold mb-2">구글 웹앱 URL이 입력되지 않았습니다!</p>
+                        <p class="text-sm text-gray-600">HTML 파일 162번째 줄의 GAS_URL 부분에<br>발급받은 주소를 붙여넣어 주세요.</p>
+                    </div>`;
+                return;
             }
+
+            // 구글 시트 데이터를 가져오는 Fetch API 코드
+            fetch(GAS_URL)
+                .then(response => response.json())
+                .then(data => onDataLoaded(data))
+                .catch(error => onError(error));
         };
 
         function onDataLoaded(data) {
             globalSheetData = data;
             
-            // 이름 추출 및 드롭다운 생성
+            // 이름 추출 및 드롭다운 생성 (빈칸 제외)
             const uniqueStudents = [...new Set(data.map(row => row['이름']).filter(name => name))];
             const selectElement = document.getElementById('studentSelect');
             selectElement.innerHTML = '';
@@ -189,30 +174,31 @@
                 uniqueStudents.forEach(studentName => {
                     const option = document.createElement('option');
                     option.value = studentName;
+                    // 학생 이름 설정 (과정명은 디자인상 고정해둠)
                     option.textContent = `[고1_2. 서울대2반] ${studentName}`;
                     selectElement.appendChild(option);
                 });
                 
-                // 첫 번째 학생 렌더링 (예: 국한울이 있으면 국한울 우선 선택)
-                const defaultStudent = uniqueStudents.includes('국한울') ? '국한울' : uniqueStudents[0];
+                // 첫 번째 학생 렌더링
+                const defaultStudent = uniqueStudents[0];
                 selectElement.value = defaultStudent;
                 renderDashboard(defaultStudent);
             }
             
-            selectElement.addEventListener('change', (e) => {
-                renderDashboard(e.target.value);
-            });
-
+            selectElement.addEventListener('change', (e) => renderDashboard(e.target.value));
             document.getElementById('loadingOverlay').style.display = 'none';
         }
 
         function onError(error) {
             console.error('데이터 로드 실패:', error);
-            alert("데이터를 불러오는데 실패했습니다. Code.gs를 확인해주세요.");
-            document.getElementById('loadingOverlay').style.display = 'none';
+            document.getElementById('loadingOverlay').innerHTML = `
+                <div class="bg-white p-6 rounded-xl shadow-lg text-center">
+                    <p class="text-red-500 font-bold mb-2">데이터를 불러오는데 실패했습니다.</p>
+                    <p class="text-sm text-gray-600">URL 주소가 정확한지 확인해주세요.</p>
+                </div>`;
         }
 
-        // 미완료 페이지 수 정밀 계산 로직
+        // 미완료 페이지 수 정밀 계산 로직 (14~19, 50,51,54 등 모두 처리)
         function calculateIncompletePages(incompleteStr) {
             if (!incompleteStr) return 0;
             let count = 0;
@@ -233,6 +219,7 @@
             return count;
         }
 
+        // 대시보드 렌더링
         function renderDashboard(targetStudent) {
             if (!targetStudent) return;
             
@@ -280,18 +267,14 @@
                 }
             });
 
-            // 상단 토탈 달성률
-            let totalRate = 0;
-            if (totalPagesAll > 0) {
-                totalRate = Math.round((completedPagesAll / totalPagesAll) * 100);
-            }
+            // 토탈 달성률 및 코멘트
+            let totalRate = totalPagesAll > 0 ? Math.round((completedPagesAll / totalPagesAll) * 100) : 0;
             document.getElementById('totalRate').innerText = totalRate;
             document.getElementById('teacherComment').innerText = `"${lastComment}"`;
 
-            // 회차별 그래프
+            // 최근 과제 수행 추이
             const sessionContainer = document.getElementById('sessionProgressContainer');
             sessionContainer.innerHTML = '';
-            
             const sortedSessions = Object.keys(sessionData).sort();
             
             if(sortedSessions.length === 0) {
@@ -301,7 +284,6 @@
             sortedSessions.forEach(session => {
                 const data = sessionData[session];
                 let percent = data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0;
-
                 const html = `
                     <div class="flex items-center gap-4">
                         <span class="w-12 text-sm font-bold text-gray-600">${session}</span>
@@ -309,12 +291,11 @@
                             <div class="bg-blue-500 h-full rounded-full progress-bar-fill" style="width: 0%" data-width="${percent}%"></div>
                         </div>
                         <span class="w-10 text-right text-sm font-black text-gray-800">${percent}%</span>
-                    </div>
-                `;
+                    </div>`;
                 sessionContainer.insertAdjacentHTML('beforeend', html);
             });
 
-            // 교재별 카드 그래프
+            // 교재별 누적 학습 현황
             const textbookContainer = document.getElementById('textbookContainer');
             textbookContainer.innerHTML = '';
 
@@ -325,7 +306,6 @@
             Object.keys(textbookData).forEach(bookName => {
                 const data = textbookData[bookName];
                 let percent = data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0;
-
                 const html = `
                     <div class="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
                         <h3 class="font-bold text-gray-800 mb-6 text-sm truncate">${bookName}</h3>
@@ -336,11 +316,11 @@
                         <div class="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
                             <div class="bg-blue-100 h-full rounded-full progress-bar-fill" style="width: 0%" data-width="${percent}%"></div>
                         </div>
-                    </div>
-                `;
+                    </div>`;
                 textbookContainer.insertAdjacentHTML('beforeend', html);
             });
 
+            // 애니메이션 지연 실행
             setTimeout(() => {
                 document.querySelectorAll('.progress-bar-fill').forEach(bar => {
                     bar.style.width = bar.getAttribute('data-width');
