@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>열린학원 스마트 기입기 2.0</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.6/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // ⭐ 문채 PM님의 고유 백엔드 주소가 미리 탑재되어 있습니다!
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbya59NwpvmaaPXbhvuvIDf4spaGy_M7m4nzjgqykvlGUdIf6Hmd5veavpVal_ogFwpD9w/exec";
+
+    function App() {
+      const [loading, setLoading] = useState(true);
+      const [saving, setSaving] = useState(false);
+      const [config, setConfig] = useState(null);
+      
+      const [student, setStudent] = useState("");
+      const [formData, setFormData] = useState({});
+      const [comment, setComment] = useState("");
+
+      // 최초 실행 시 엑셀에서 학생 목록과 총평 템플릿을 가져옵니다
+      useEffect(() => {
+        fetch(GAS_URL + "?action=getConfig")
+          .then(res => res.json())
+          .then(data => {
+            setConfig(data);
+            setLoading(false);
+          })
+          .catch(err => {
+            alert("데이터를 불러오는 중 오류가 발생했습니다.");
+            setLoading(false);
+          });
+      }, []);
+
+      // 학생을 선택하면, 그 학생에게 배정된 교재 폼을 자동으로 엽니다
+      const handleStudentChange = (e) => {
+        const sName = e.target.value;
+        setStudent(sName);
+        setComment("");
+        
+        if(!sName) {
+          setFormData({});
+          return;
+        }
+
+        const sInfo = config.students.find(s => s.name === sName);
+        const newForm = {};
+        if(sInfo && sInfo.books) {
+          sInfo.books.forEach(b => {
+            newForm[b] = {
+              active: true,      // 이번 점검에 포함할지 여부
+              session: "",       // 회차 (예: 3회차)
+              startPage: "",     // 시작 쪽
+              endPage: "",       // 끝 쪽
+              uncompleted: "",   // 미완료
+              isAbsent: false    // 결석/미지참 토글
+            };
+          });
+        }
+        setFormData(newForm);
+      };
+
+      // 입력 값 변경 핸들러
+      const handleInputChange = (book, field, value) => {
+        setFormData(prev => ({
+          ...prev,
+          [book]: {
+            ...prev[book],
+            [field]: value
+          }
+        }));
+      };
+
+      // 총평 배지(버튼) 클릭 시 텍스트 영역에 추가
+      const addCommentBadge = (text) => {
+        setComment(prev => prev ? prev + "\n" + text : text);
+      };
+
+      // 엑셀로 데이터 전송 (저장!)
+      const handleSubmit = async () => {
+        const sInfo = config.students.find(s => s.name === student);
+        const recordsToSave = [];
+
+        for(const bName in formData) {
+          const d = formData[bName];
+          if(!d.active) continue; // 토글 꺼진 교재는 패스
+
+          // 결석이 아닌데 필수 입력값이 없으면 경고
+          if(!d.isAbsent && (!d.session || !d.startPage || !d.endPage)) {
+            alert(`[${bName}] 교재의 회차, 시작쪽, 끝쪽을 모두 입력해주세요.`);
+            return;
+          }
+
+          recordsToSave.push({
+            name: sInfo.name,
+            className: sInfo.className,
+            book: bName,
+            session: d.session,
+            startPage: d.startPage,
+            endPage: d.endPage,
+            uncompleted: d.uncompleted,
+            note: d.isAbsent ? "결석/미지참" : "",
+            comment: comment // 코멘트는 대표로 달아줌
+          });
+        }
+
+        if(recordsToSave.length === 0) {
+          alert("저장할 점검 기록이 없습니다. (교재를 활성화해주세요)");
+          return;
+        }
+
+        setSaving(true);
+        try {
+          // 백엔드 doPost 로 데이터 발사!
+          const res = await fetch(GAS_URL, {
+            method: "POST",
+            body: JSON.stringify(recordsToSave)
+          });
+          const result = await res.json();
+          
+          if(result.success) {
+            alert("✅ 엑셀에 성공적으로 저장되었습니다!");
+            // 폼 초기화 (다음 학생 입력 준비)
+            setStudent("");
+            setFormData({});
+            setComment("");
+          } else {
+            alert("저장 실패: " + result.error);
+          }
+        } catch(err) {
+          alert("통신 오류: " + err.message);
+        }
+        setSaving(false);
+      };
+
+      if (loading) return <div className="flex justify-center items-center h-screen font-bold text-indigo-600">데이터를 불러오는 중...</div>;
+
+      return (
+        <div className="max-w-md mx-auto bg-white min-h-screen pb-24 shadow-lg border-x border-slate-200">
+          {/* 헤더 */}
+          <div className="bg-indigo-600 text-white p-5 rounded-b-2xl shadow-md">
+            <h1 className="text-xl font-black">스마트 교재점검 기입기</h1>
+            <p className="text-xs text-indigo-200 mt-1">단원 고민 없이 시작/끝 페이지만 입력하세요!</p>
+          </div>
+
+          <div className="p-5 space-y-6">
+            
+            {/* 1. 학생 선택 */}
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">학생 선택</label>
+              <select 
+                className="w-full bg-slate-50 border border-slate-300 text-slate-800 text-base rounded-xl p-3 font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+                value={student}
+                onChange={handleStudentChange}
+              >
+                <option value="">학생을 선택하세요...</option>
+                {config && config.students.map((s, i) => (
+                  <option key={i} value={s.name}>[{s.className}] {s.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* 2. 교재별 입력 폼 */}
+            {student && (
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold text-slate-800 border-b pb-2">점검 내용 기입</h3>
+                
+                {Object.keys(formData).map(bookName => {
+                  const d = formData[bookName];
+                  return (
+                    <div key={bookName} className={`p-4 rounded-2xl border-2 transition-all ${d.active ? 'border-indigo-500 bg-indigo-50/30' : 'border-slate-200 bg-slate-50 opacity-60'}`}>
+                      
+                      <div className="flex justify-between items-center mb-4">
+                        <span className="font-black text-slate-800">{bookName}</span>
+                        <label className="flex items-center cursor-pointer">
+                          <span className="text-xs font-bold text-slate-500 mr-2">이 교재 점검하기</span>
+                          <input type="checkbox" className="w-5 h-5 accent-indigo-600 cursor-pointer" 
+                            checked={d.active} 
+                            onChange={(e) => handleInputChange(bookName, 'active', e.target.checked)} 
+                          />
+                        </label>
+                      </div>
+
+                      {d.active && (
+                        <div className="space-y-3">
+                          
+                          {/* 결석/미지참 토글 */}
+                          <div className="flex justify-end mb-2">
+                            <label className="flex items-center gap-1.5 bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-200 cursor-pointer">
+                              <input type="checkbox" className="w-4 h-4 accent-rose-500" 
+                                checked={d.isAbsent} 
+                                onChange={(e) => handleInputChange(bookName, 'isAbsent', e.target.checked)} 
+                              />
+                              <span className="text-xs font-bold text-rose-600">결석 또는 교재 미지참</span>
+                            </label>
+                          </div>
+
+                          {!d.isAbsent ? (
+                            <>
+                              <div>
+                                <label className="text-xs font-bold text-slate-500 block mb-1">회차</label>
+                                <input type="text" placeholder="예: 3회차" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm font-bold"
+                                  value={d.session} onChange={(e) => handleInputChange(bookName, 'session', e.target.value)} />
+                              </div>
+                              <div className="flex gap-2">
+                                <div className="flex-1">
+                                  <label className="text-xs font-bold text-slate-500 block mb-1">시작 쪽</label>
+                                  <input type="number" placeholder="예: 15" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm font-bold"
+                                    value={d.startPage} onChange={(e) => handleInputChange(bookName, 'startPage', e.target.value)} />
+                                </div>
+                                <div className="flex-1">
+                                  <label className="text-xs font-bold text-slate-500 block mb-1">끝 쪽</label>
+                                  <input type="number" placeholder="예: 40" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm font-bold"
+                                    value={d.endPage} onChange={(e) => handleInputChange(bookName, 'endPage', e.target.value)} />
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-xs font-bold text-slate-500 block mb-1">미완료(안 푼 쪽)</label>
+                                <input type="text" placeholder="예: 15, 18~20 (없으면 빈칸)" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm font-bold"
+                                  value={d.uncompleted} onChange={(e) => handleInputChange(bookName, 'uncompleted', e.target.value)} />
+                              </div>
+                            </>
+                          ) : (
+                            <div className="bg-slate-100 p-4 rounded-xl text-center text-sm font-bold text-slate-500">
+                              결석 처리되어 쪽수를 입력하지 않습니다.
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* 3. 총평 입력 및 예시 배지 */}
+            {student && (
+              <div className="space-y-3 pt-4 border-t border-slate-200">
+                <h3 className="text-sm font-bold text-slate-800">선생님 총평</h3>
+                
+                {/* 엑셀에서 가져온 꿀템플릿 버튼들 */}
+                {config && config.comments && config.comments.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {config.comments.map((cmt, idx) => (
+                      <button key={idx} onClick={() => addCommentBadge(cmt)} className="bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-full text-xs font-bold active:scale-95 transition-transform text-left">
+                        {cmt}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                
+                <textarea 
+                  rows="3" 
+                  placeholder="추가 코멘트를 입력하세요..."
+                  className="w-full border border-slate-300 rounded-xl p-3 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none"
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                ></textarea>
+              </div>
+            )}
+          </div>
+
+          {/* 4. 하단 고정 저장 버튼 */}
+          {student && (
+            <div className="fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 p-4 max-w-md mx-auto z-50">
+              <button 
+                onClick={handleSubmit} 
+                disabled={saving}
+                className={`w-full text-white font-black py-4 rounded-xl text-lg shadow-xl transition-all ${saving ? 'bg-slate-400' : 'bg-indigo-600 hover:bg-indigo-700 active:scale-95'}`}
+              >
+                {saving ? '엑셀에 기록하는 중...' : '엑셀에 저장하기 🚀'}
+              </button>
+            </div>
+          )}
+
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
